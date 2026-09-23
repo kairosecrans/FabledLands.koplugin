@@ -82,6 +82,11 @@ function Character.restore(data)
     for _, ability in ipairs(Rules.ABILITIES) do
         data.abilities[ability] = data.abilities[ability] or Rules.ABILITY_MIN
     end
+    -- Tidy codewords saved before they were normalised, so an old list reads
+    -- the same as a new one.
+    for i, word in ipairs(data.codewords) do
+        data.codewords[i] = Character.normaliseCodeword(word)
+    end
     return setmetatable(data, Character)
 end
 
@@ -231,10 +236,19 @@ function Character:hasCodeword(word)
     return false
 end
 
+--- Normalises a codeword to the way the books print them: one leading capital,
+-- the rest lower case. Comparison is case-insensitive either way, so this is
+-- purely so the list reads consistently however it was typed.
+function Character.normaliseCodeword(word)
+    word = tostring(word):match("^%s*(.-)%s*$")
+    if word == "" then return "" end
+    return word:sub(1, 1):upper() .. word:sub(2):lower()
+end
+
 --- Records a codeword, keeping the list sorted and free of duplicates.
 -- @treturn bool false if it was already held
 function Character:addCodeword(word)
-    word = tostring(word):match("^%s*(.-)%s*$")
+    word = Character.normaliseCodeword(word)
     if word == "" or self:hasCodeword(word) then return false end
     table.insert(self.codewords, word)
     table.sort(self.codewords, function(a, b) return a:lower() < b:lower() end)

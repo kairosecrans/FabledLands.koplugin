@@ -96,6 +96,13 @@ do
     eq(#sparse.possessions, 0, "missing possessions default to empty")
     eq(sparse:defence(), 2, "Defence still computable")
     eq(Character.restore(nil).rank, 1, "restore(nil) does not crash")
+
+    -- Codewords saved before normalisation existed get tidied on load.
+    local legacy = Character.restore({ codewords = { "ALMANAC", "deLIVER", "Aid" } })
+    eq(legacy.codewords[1], "Almanac", "shouted legacy codeword normalised")
+    eq(legacy.codewords[2], "Deliver", "mixed-case legacy codeword normalised")
+    eq(legacy.codewords[3], "Aid", "already-correct codeword left alone")
+    eq(legacy:hasCodeword("almanac"), true, "still found case-insensitively")
 end
 
 -- Stamina ------------------------------------------------------------------
@@ -197,7 +204,27 @@ do
     eq(#hero.codewords, 1, "still one codeword")
 
     eq(hero:addCodeword("  Anchor  "), true, "surrounding space is trimmed")
-    eq(hero.codewords[1], "Anchor", "list is kept sorted")
+
+    -- However they are typed, codewords are stored the way the books print
+    -- them: one leading capital, the rest lower case.
+    eq(hero:addCodeword("ALMANAC"), true, "shouted codeword accepted")
+    eq(hero:hasCodeword("ALMANAC"), true, "found however it was typed")
+    eq(hero:addCodeword("Almanac"), false, "and not addable a second time")
+    eq(hero:addCodeword("aLmAnAc"), false, "nor in any other casing")
+    local stored
+    for _, held in ipairs(hero.codewords) do
+        if held:lower() == "almanac" then stored = held end
+    end
+    eq(stored, "Almanac", "stored with a single leading capital")
+    eq(Character.normaliseCodeword("  wILd bOAR "), "Wild boar", "normalisation trims and cases")
+    eq(Character.normaliseCodeword("   "), "", "blank normalises to empty")
+    -- Sortedness is the invariant; pinning an index just breaks whenever the
+    -- fixture gains another codeword.
+    local sorted = true
+    for i = 2, #hero.codewords do
+        if hero.codewords[i - 1]:lower() > hero.codewords[i]:lower() then sorted = false end
+    end
+    check(sorted, "list is kept sorted", table.concat(hero.codewords, ", "))
     eq(hero:addCodeword("   "), false, "blank codeword refused")
     eq(hero:hasCodeword("Artefact"), false, "codeword not held")
 
