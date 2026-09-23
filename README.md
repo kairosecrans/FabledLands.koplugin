@@ -88,13 +88,13 @@ The repository *is* the plugin directory, so clone it straight into KoReader's
 **Android**
 
 ```bash
-git clone https://github.com/kairosecrans/fabledlands.koplugin.git /storage/emulated/0/koreader/plugins/FabledLands.koplugin
+git clone https://github.com/kairosecrans/FabledLands.koplugin.git /storage/emulated/0/koreader/plugins/FabledLands.koplugin
 ```
 
 **Linux (AppImage / desktop)**
 
 ```bash
-git clone https://github.com/kairosecrans/fabledlands.koplugin.git ~/.config/koreader/plugins/FabledLands.koplugin
+git clone https://github.com/kairosecrans/FabledLands.koplugin.git ~/.config/koreader/plugins/FabledLands.koplugin
 ```
 
 **Kobo / Kindle**
