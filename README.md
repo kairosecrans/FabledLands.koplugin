@@ -86,8 +86,9 @@ exact undo for a mis-tap.
 
 ## Installing
 
-**Easiest: the App Store KOReader plugin.** If you have it, find Fabled Lands
-and install. It pulls straight from this repository, so updating is a tap.
+**Easiest: the [App Store plugin](https://github.com/omer-faruq/appstore.koplugin).**
+If you have it, find Fabled Lands and install. It pulls straight from this
+repository, so updating is a tap.
 
 **By hand:** clone into KOReader's `plugins` folder. The directory name must
 end in `.koplugin`.
