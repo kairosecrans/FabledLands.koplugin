@@ -215,8 +215,9 @@ end
 --- Searches for the section and goes there. No confirmation: the whole point
 -- is to replace flipping pages, and a dialog in the way defeats that.
 --
--- A nearest match still moves, but says so afterwards in a notice that
--- dismisses itself -- uncertainty is worth mentioning, not worth a prompt.
+-- A nearest match just moves. It goes to the log rather than the screen: you
+-- can see for yourself whether the page is right, so saying so on top of the
+-- page you asked for is noise.
 function FabledLands:jumpToSection(target)
     local found
     local ok = pcall(function() found = Sections.find(self.ui.document, target) end)
@@ -235,7 +236,8 @@ It needs a text layer -- a scan that has been through OCR. Use the reader's own 
     self.ui:handleEvent(Event:new("GotoPage", found.page))
 
     if not found.exact then
-        Prompts.info(("Section %d was not found; this is the closest page."):format(target), 3)
+        logger.info("Fabled Lands: section", target,
+            "not found; nearest page", found.page, "after", found.reads, "reads")
     end
 end
 
