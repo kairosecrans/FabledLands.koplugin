@@ -38,9 +38,9 @@ local function scripted(...)
 end
 
 -- Ability checks -----------------------------------------------------------
--- Book example (p. 5): CHARISMA 6 against Difficulty 10 means "you would have
--- to get 5 or higher on two dice to succeed". So 2d6=4 fails and 2d6=5 passes;
--- equalling the Difficulty is NOT a success.
+-- Book example (p. 5): with CHARISMA 6 against Difficulty 10 the dice must
+-- total 5 or more. So 2d6=4 fails and 2d6=5 passes; equalling the Difficulty
+-- is NOT a success.
 do
     local fail = Rules.abilityCheck(6, 0, 10, scripted(2, 2))
     eq(fail.total, 10, "charisma 2d6=4 total")
@@ -51,8 +51,8 @@ do
     eq(pass.success, true, "beating the Difficulty by 1 must succeed")
 end
 
--- Book example (p. 7): THIEVERY 4 against a Difficulty 9 climb means "you must
--- roll at least a 6 on the dice".
+-- Book example (p. 7): with THIEVERY 4 against a Difficulty 9 climb, the dice
+-- must total at least 6.
 do
     local fail = Rules.abilityCheck(4, 0, 9, scripted(2, 3))
     eq(fail.success, false, "thievery 2d6=5 vs difficulty 9 fails")
@@ -78,16 +78,15 @@ eq(Rules.defence(5, 1, 0), 6, "defence with no armour")
 -- Book example (p. 6) in full: a 3rd Rank character with COMBAT 4 fights a
 -- goblin (COMBAT 5, Defence 7, Stamina 6).
 do
-    -- "Suppose you roll 8 on two dice. Adding your COMBAT gives a total of 12.
-    --  This is 5 more than the goblin's Defence, so it loses 5 Stamina."
+    -- Your blow: 2d6 = 8, plus COMBAT 4, is 12 against the goblin's Defence
+    -- of 7, so it loses 5 Stamina.
     local blow = Rules.strike(4, 0, 7, scripted(5, 3))
     eq(blow.total, 12, "player attack total")
     eq(blow.damage, 5, "player damage is the margin over Defence")
     eq(blow.hit, true, "player hits")
 
-    -- "The goblin ... rolls 6 on the dice which, added to its COMBAT of 5,
-    --  gives a total attack score of 11 ... Your Defence is therefore 9 ...
-    --  so you lose 2 Stamina."
+    -- Its reply: 2d6 = 6, plus its COMBAT 5, is 11 against your Defence of 9
+    -- (COMBAT 4 + Rank 3 + a +2 tabard), so you lose 2 Stamina.
     local reply = Rules.strike(5, 0, 9, scripted(4, 2))
     eq(reply.total, 11, "goblin attack total")
     eq(reply.damage, 2, "goblin damage is the margin over Defence")
@@ -208,7 +207,7 @@ do
     local book, title = Rules.codewordBook("Aid")
     eq(book, 1, "A-codewords come from Book 1")
     eq(title, "The War-Torn Kingdom", "Book 1 title")
-    -- Book (p. 7): "if it begins with C, it is from Book 3".
+    -- Book (p. 7): a codeword beginning with C comes from Book 3.
     eq((Rules.codewordBook("Cargo")), 3, "C-codewords come from Book 3")
     eq((Rules.codewordBook("deliver")), 4, "lookup is case-insensitive")
     eq((Rules.codewordBook("7")), nil, "a non-letter has no book")

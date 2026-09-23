@@ -2,9 +2,9 @@
 The combat tracker.
 
 A fight is resolved one round at a time: you strike, then if the enemy is
-still standing it strikes back (p. 6, "you always get first blow unless told
-otherwise"). The book sometimes gives the enemy the first blow, so there is a
-separate button for a lone enemy strike.
+still standing it strikes back; you strike first unless the book says
+otherwise (p. 6). The book sometimes gives the enemy the first blow, so there
+is a separate button for a lone enemy strike.
 
 The fight is stored on the character, so closing the panel to re-read the page
 does not lose the enemy's Stamina.
