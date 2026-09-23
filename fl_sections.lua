@@ -52,19 +52,68 @@ function Sections.onPage(document, pageno)
     return found
 end
 
+-- Markers genuinely on one page are consecutive (38, 39, 40...), so a lone
+-- number is not a section: it is a running-head page number, a stray digit,
+-- or OCR noise. Anything further than this from its neighbour starts a
+-- separate group.
+--
+-- Kept tight on purpose. Early in a book, section numbers and page numbers
+-- are both small -- section 14 near page 16 -- so a loose threshold swallows
+-- a stray page number into the real run instead of rejecting it. Measured on
+-- a book where every page also printed its own number alone: a gap of 25 put
+-- 33 sections wrong by up to 4 pages, a gap of 3 put none wrong. The cost is
+-- that heavily damaged pages split into smaller runs, which loses precision
+-- but never correctness.
+Sections.CLUSTER_GAP = 3
+
+--- Reduces a page's markers to the largest tightly-grouped run.
+--
+-- Dropping markers costs accuracy but never correctness, because the search
+-- still narrows monotonically. A false positive is different: it breaks the
+-- ordering the search relies on and can send it to the wrong end of the book.
+-- Discarding outliers is therefore worth a little lost precision.
+function Sections.cluster(marks)
+    if #marks <= 1 then return marks end
+    local best_i, best_j, i = 1, 1, 1
+    while i <= #marks do
+        local j = i
+        while j < #marks and marks[j + 1] - marks[j] <= Sections.CLUSTER_GAP do
+            j = j + 1
+        end
+        if (j - i) > (best_j - best_i) then best_i, best_j = i, j end
+        i = j + 1
+    end
+    local out = {}
+    for k = best_i, best_j do out[#out + 1] = marks[k] end
+    return out
+end
+
 --- Finds the nearest page at or around `pageno` that carries any marker.
 -- Illustrations, maps and the codeword list have none, so a probe that lands
 -- on one has to look outwards rather than give up.
 local function probeNear(read, pageno, lo, hi)
+    -- A page of real sections carries a run of them; a stray numeral in the
+    -- front matter is alone. So take the best evidence in the window rather
+    -- than the first: a lone number is only trusted when there is nothing
+    -- better nearby. Without this, a single stray on a front-matter page can
+    -- anchor the search below the page where the text actually starts.
+    local fallback_page, fallback_marks
     for offset = 0, 4 do
         for _, p in ipairs(offset == 0 and { pageno } or { pageno - offset, pageno + offset }) do
             if p >= lo and p <= hi then
                 local marks = read(p)
-                if marks and #marks > 0 then return p, marks end
+                if marks and #marks > 0 then
+                    marks = Sections.cluster(marks)
+                    if #marks > 1 then
+                        return p, marks
+                    elseif #marks == 1 and not fallback_page then
+                        fallback_page, fallback_marks = p, marks
+                    end
+                end
             end
         end
     end
-    return nil
+    return fallback_page, fallback_marks
 end
 
 --- Binary-searches the page range for the page holding `target`.
