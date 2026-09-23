@@ -55,7 +55,10 @@ local SHORT_ABILITY = {
 --- The whole profession table, aligned, for choosing at creation.
 -- Buttons render on a single line in a proportional font, so the comparison
 -- goes in the panel's monospaced title and the buttons carry only the names.
-function Format.professionTable()
+-- Shows the table belonging to the book you are starting in, since the
+-- scores scale as the series goes on.
+function Format.professionTable(book)
+    local professions = Rules.professionsFor(book)
     local function row(label, cell)
         local line = pad(label, 11)
         for _, ability in ipairs(Rules.ABILITIES) do
@@ -66,10 +69,24 @@ function Format.professionTable()
 
     local lines = { row("", function(ability) return SHORT_ABILITY[ability] end) }
     for _, profession in ipairs(Rules.PROFESSION_NAMES) do
-        local stats = Rules.PROFESSIONS[profession]
+        local stats = professions[profession]
         table.insert(lines, row(profession, function(ability) return stats[ability] end))
     end
     return table.concat(lines, "\n")
+end
+
+--- What starting in a given book gives you, for the creation screen.
+function Format.startingBook(book)
+    local start = Rules.STARTING_BOOKS[book]
+    if not start then return "" end
+    local kit = {}
+    for _i, item in ipairs(start.kit) do
+        table.insert(kit, item.defence and ("%s (Defence +%d)"):format(item.name, item.defence)
+            or item.name)
+    end
+    return ("Book %d: %s\n\n  %s Rank, Stamina %d, %d Shards\n  %s"):format(
+        book, Rules.BOOK_TITLES[book] or "?", Rules.ordinal(start.rank),
+        start.stamina, start.shards, table.concat(kit, ", "))
 end
 
 --- The whole sheet, as shown on the plugin's main panel.

@@ -500,34 +500,62 @@ function FabledLands:createCharacter()
             name = name:match("^%s*(.-)%s*$")
             if name == "" then name = _("Adventurer") end
 
-            -- Two names per row: the comparison table lives in the title, so
-            -- the buttons only have to carry a profession name.
-            local rows, row = {}, {}
-            for _i, profession in ipairs(Rules.PROFESSION_NAMES) do
-                table.insert(row, {
-                    text = profession,
-                    callback = function()
-                        local character = Character.create(name, profession)
-                        table.insert(self.roster, character)
-                        self:useCharacter(#self.roster)
-                        self:save()
-                        self:showSheet()
-                    end,
-                })
-                if #row == 2 then
-                    table.insert(rows, row)
-                    row = {}
-                end
-            end
-            if #row > 0 then table.insert(rows, row) end
-
-            Prompts.panel{
-                title = ("%s\n\n%s\n\n%s"):format(name, Format.professionTable(),
-                    _("Choose a profession.")),
-                buttons = rows,
-                close_callback = function() self:showSheet() end,
-            }
+            self:chooseStartingBook(name)
         end,
+    }
+end
+
+--- Which book you are starting in. A later one begins you further along, so
+-- this has to come before the profession table -- the scores differ.
+function FabledLands:chooseStartingBook(name)
+    local items = {}
+    for book = 1, #Rules.STARTING_BOOKS do
+        local start = Rules.STARTING_BOOKS[book]
+        table.insert(items, {
+            text = ("Book %d  --  %s Rank, %d Stamina"):format(
+                book, Rules.ordinal(start.rank), start.stamina),
+            callback = function() self:chooseProfession(name, book) end,
+        })
+    end
+    Prompts.menu{
+        title = ("%s\n\n%s"):format(name,
+            _("Which book are you starting in?\nA later one starts you further along.")),
+        items = items,
+        close_callback = function() self:showSheet() end,
+    }
+end
+
+function FabledLands:chooseProfession(name, book)
+    -- Two names per row: the comparison table lives in the title, so the
+    -- buttons only have to carry a profession name.
+    local rows, row = {}, {}
+    for _i, profession in ipairs(Rules.PROFESSION_NAMES) do
+        table.insert(row, {
+            text = profession,
+            callback = function()
+                local character, err = Character.create(name, profession, book)
+                if not character then
+                    Prompts.info(err)
+                    return
+                end
+                table.insert(self.roster, character)
+                self:useCharacter(#self.roster)
+                self:save()
+                self:showSheet()
+            end,
+        })
+        if #row == 2 then
+            table.insert(rows, row)
+            row = {}
+        end
+    end
+    if #row > 0 then table.insert(rows, row) end
+
+    Prompts.panel{
+        title = ("%s\n\n%s\n\n%s"):format(Format.startingBook(book),
+            Format.professionTable(book), _("Choose a profession.")),
+        buttons = rows,
+        close_callback = function() self:showSheet() end,
     }
 end
 

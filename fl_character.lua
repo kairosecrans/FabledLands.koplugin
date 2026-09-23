@@ -19,11 +19,20 @@ local Rules = require("fl_rules")
 local Character = {}
 Character.__index = Character
 
---- Builds a fresh 1st Rank character of the given profession.
--- Everyone starts with 16 Shards, a sword, a leather jerkin (+1 Defence)
--- and a map (p. 6).
-function Character.create(name, profession)
-    local stats = Rules.PROFESSIONS[profession]
+--- Builds a fresh character of the given profession, ready to start in a book.
+--
+-- You may begin the series at any book, and a later one starts you further
+-- along: higher Rank, more Stamina, more money and better gear, with ability
+-- scores drawn from that book's own profession table. Defaults to Book 1.
+-- @string name
+-- @string profession
+-- @int book 1-6, defaults to 1
+function Character.create(name, profession, book)
+    book = book or 1
+    local start = Rules.STARTING_BOOKS[book]
+    if not start then return nil, "unknown starting book: " .. tostring(book) end
+
+    local stats = Rules.professionsFor(book)[profession]
     if not stats then return nil, "unknown profession: " .. tostring(profession) end
 
     local abilities = {}
@@ -31,19 +40,24 @@ function Character.create(name, profession)
         abilities[ability] = score
     end
 
+    -- Copied, not referenced: the kit is shared template data and a character
+    -- must be free to drop or upgrade its own gear.
+    local possessions = {}
+    for _i, item in ipairs(start.kit) do
+        possessions[#possessions + 1] = { name = item.name, ability = item.ability,
+            bonus = item.bonus, defence = item.defence }
+    end
+
     return Character.restore({
         name = name,
         profession = profession,
-        rank = 1,
+        started_in = book,
+        rank = start.rank,
         abilities = abilities,
-        stamina = Rules.STARTING_STAMINA,
-        stamina_max = Rules.STARTING_STAMINA,
-        shards = Rules.STARTING_SHARDS,
-        possessions = {
-            { name = "sword" },
-            { name = "leather jerkin", defence = 1 },
-            { name = "map" },
-        },
+        stamina = start.stamina,
+        stamina_max = start.stamina,
+        shards = start.shards,
+        possessions = possessions,
         codewords = {},
         titles = {},
         blessings = {},

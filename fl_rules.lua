@@ -29,15 +29,68 @@ Rules.MAX_RANK = 10
 Rules.STARTING_STAMINA = 9
 Rules.STARTING_SHARDS = 16
 
--- Starting ability scores by profession (p. 5).
-Rules.PROFESSIONS = {
-    Mage       = { CHARISMA = 2, COMBAT = 2, MAGIC = 6, SANCTITY = 1, SCOUTING = 5, THIEVERY = 3 },
-    Priest     = { CHARISMA = 4, COMBAT = 2, MAGIC = 3, SANCTITY = 6, SCOUTING = 4, THIEVERY = 2 },
-    Rogue      = { CHARISMA = 5, COMBAT = 4, MAGIC = 4, SANCTITY = 1, SCOUTING = 2, THIEVERY = 6 },
-    Troubadour = { CHARISMA = 6, COMBAT = 3, MAGIC = 4, SANCTITY = 3, SCOUTING = 2, THIEVERY = 4 },
-    Warrior    = { CHARISMA = 3, COMBAT = 6, MAGIC = 2, SANCTITY = 4, SCOUTING = 3, THIEVERY = 2 },
-    Wayfarer   = { CHARISMA = 2, COMBAT = 5, MAGIC = 2, SANCTITY = 3, SCOUTING = 6, THIEVERY = 4 },
+--- Starting ability scores by profession.
+--
+-- You need only one book to start, and a later one starts you further along:
+-- higher Rank, more Stamina, better gear, and a profession table whose scores
+-- have been scaled up. The books come in pairs -- 1 and 2 share a table, as do
+-- 3 and 4, and 5 and 6 -- so there are three tiers rather than six tables.
+-- The initial range widens (1-6, then 1-7, then 1-8) but the hard cap on an
+-- ability stays 12 throughout.
+Rules.PROFESSION_TIERS = {
+    { -- Books 1-2
+        Mage       = { CHARISMA = 2, COMBAT = 2, MAGIC = 6, SANCTITY = 1, SCOUTING = 5, THIEVERY = 3 },
+        Priest     = { CHARISMA = 4, COMBAT = 2, MAGIC = 3, SANCTITY = 6, SCOUTING = 4, THIEVERY = 2 },
+        Rogue      = { CHARISMA = 5, COMBAT = 4, MAGIC = 4, SANCTITY = 1, SCOUTING = 2, THIEVERY = 6 },
+        Troubadour = { CHARISMA = 6, COMBAT = 3, MAGIC = 4, SANCTITY = 3, SCOUTING = 2, THIEVERY = 4 },
+        Warrior    = { CHARISMA = 3, COMBAT = 6, MAGIC = 2, SANCTITY = 4, SCOUTING = 3, THIEVERY = 2 },
+        Wayfarer   = { CHARISMA = 2, COMBAT = 5, MAGIC = 2, SANCTITY = 3, SCOUTING = 6, THIEVERY = 4 },
+    },
+    { -- Books 3-4
+        Mage       = { CHARISMA = 3, COMBAT = 3, MAGIC = 7, SANCTITY = 1, SCOUTING = 6, THIEVERY = 4 },
+        Priest     = { CHARISMA = 5, COMBAT = 3, MAGIC = 4, SANCTITY = 7, SCOUTING = 5, THIEVERY = 2 },
+        Rogue      = { CHARISMA = 6, COMBAT = 5, MAGIC = 5, SANCTITY = 2, SCOUTING = 3, THIEVERY = 7 },
+        Troubadour = { CHARISMA = 7, COMBAT = 4, MAGIC = 5, SANCTITY = 4, SCOUTING = 3, THIEVERY = 5 },
+        Warrior    = { CHARISMA = 4, COMBAT = 7, MAGIC = 2, SANCTITY = 5, SCOUTING = 4, THIEVERY = 5 },
+        Wayfarer   = { CHARISMA = 3, COMBAT = 6, MAGIC = 3, SANCTITY = 4, SCOUTING = 7, THIEVERY = 5 },
+    },
+    { -- Books 5-6
+        Mage       = { CHARISMA = 4, COMBAT = 4, MAGIC = 8, SANCTITY = 1, SCOUTING = 7, THIEVERY = 5 },
+        Priest     = { CHARISMA = 6, COMBAT = 4, MAGIC = 5, SANCTITY = 8, SCOUTING = 6, THIEVERY = 2 },
+        Rogue      = { CHARISMA = 7, COMBAT = 6, MAGIC = 6, SANCTITY = 2, SCOUTING = 4, THIEVERY = 8 },
+        Troubadour = { CHARISMA = 8, COMBAT = 5, MAGIC = 5, SANCTITY = 5, SCOUTING = 4, THIEVERY = 6 },
+        Warrior    = { CHARISMA = 5, COMBAT = 8, MAGIC = 3, SANCTITY = 6, SCOUTING = 5, THIEVERY = 3 },
+        Wayfarer   = { CHARISMA = 4, COMBAT = 7, MAGIC = 4, SANCTITY = 4, SCOUTING = 8, THIEVERY = 6 },
+    },
 }
+
+--- What you begin with when you start in a given book.
+-- Stamina climbs by roughly the average of a die per Rank, which is what you
+-- would have gained getting there the long way.
+Rules.STARTING_BOOKS = {
+    { rank = 1, stamina = 9,  shards = 16, tier = 1,
+      kit = { { name = "sword" }, { name = "leather jerkin", defence = 1 }, { name = "map" } } },
+    { rank = 2, stamina = 13, shards = 16, tier = 1,
+      kit = { { name = "sword" }, { name = "leather jerkin", defence = 1 }, { name = "map" } } },
+    { rank = 3, stamina = 16, shards = 40, tier = 2,
+      kit = { { name = "sword" }, { name = "chain mail", defence = 3 }, { name = "map" } } },
+    { rank = 4, stamina = 20, shards = 65, tier = 2,
+      kit = { { name = "sword" }, { name = "chain mail", defence = 3 }, { name = "map" } } },
+    { rank = 5, stamina = 23, shards = 65, tier = 3,
+      kit = { { name = "sword" }, { name = "chain mail", defence = 3 } } },
+    -- Book 6 starts you with nothing but what you stand up in.
+    { rank = 6, stamina = 27, shards = 0,  tier = 3,
+      kit = { { name = "platinum earring" } } },
+}
+
+--- The profession table in force for a given starting book (default Book 1).
+function Rules.professionsFor(book)
+    local entry = Rules.STARTING_BOOKS[book or 1] or Rules.STARTING_BOOKS[1]
+    return Rules.PROFESSION_TIERS[entry.tier]
+end
+
+--- Book 1's table, kept as the default for callers that do not care.
+Rules.PROFESSIONS = Rules.PROFESSION_TIERS[1]
 
 -- Ordered for menus; the table above is keyed, so it has no stable order.
 Rules.PROFESSION_NAMES = { "Mage", "Priest", "Rogue", "Troubadour", "Warrior", "Wayfarer" }

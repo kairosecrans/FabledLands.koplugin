@@ -229,5 +229,90 @@ do
         "the COMBAT slot frees up again")
 end
 
+-- Starting in a later book ------------------------------------------------
+-- You need only one book to start, and a later one begins you further along.
+-- These are the printed values from each book's front matter.
+do
+    local expected = {
+        [1] = { rank = 1, stamina = 9,  shards = 16 },
+        [2] = { rank = 2, stamina = 13, shards = 16 },
+        [3] = { rank = 3, stamina = 16, shards = 40 },
+        [4] = { rank = 4, stamina = 20, shards = 65 },
+        [5] = { rank = 5, stamina = 23, shards = 65 },
+        [6] = { rank = 6, stamina = 27, shards = 0  },
+    }
+    for book, want in pairs(expected) do
+        local hero = Character.create("Traveller", "Warrior", book)
+        eq(hero.rank, want.rank, ("book %d starting Rank"):format(book))
+        eq(hero.stamina, want.stamina, ("book %d starting Stamina"):format(book))
+        eq(hero.stamina_max, want.stamina, ("book %d unwounded Stamina"):format(book))
+        eq(hero.shards, want.shards, ("book %d starting Shards"):format(book))
+        eq(hero.started_in, book, ("book %d recorded"):format(book))
+    end
+
+    -- Book 1 stays the default, so old callers are unaffected.
+    local default = Character.create("Default", "Warrior")
+    eq(default.rank, 1, "no book given means Book 1")
+    eq(default.stamina, 9, "default Stamina")
+    eq(default.shards, 16, "default Shards")
+
+    local bad, err = Character.create("Nobody", "Warrior", 99)
+    eq(bad, nil, "unknown starting book refused")
+    check(err ~= nil, "unknown starting book explains itself")
+end
+
+-- The later books scale the profession tables, and their Defence scores must
+-- reproduce the pre-generated characters printed in each book.
+do
+    -- Book 3 Warrior: COMBAT 7, 3rd Rank, chain mail (+3) -> Defence 13.
+    local b3 = Character.create("Third", "Warrior", 3)
+    eq(b3.abilities.COMBAT, 7, "book 3 Warrior COMBAT")
+    eq(b3:armourBonus(), 3, "book 3 starts in chain mail")
+    eq(b3:defence(), 13, "book 3 Warrior Defence matches the printed 13")
+
+    -- Book 4 Warrior: COMBAT 7, 4th Rank, chain mail (+3) -> Defence 14.
+    eq(Character.create("Fourth", "Warrior", 4):defence(), 14, "book 4 Warrior Defence")
+    -- Book 4 Priest: COMBAT 3, 4th Rank, chain mail (+3) -> Defence 10.
+    eq(Character.create("Fourth", "Priest", 4):defence(), 10, "book 4 Priest Defence")
+    -- Book 5 Troubadour: COMBAT 5, 5th Rank, chain mail (+3) -> Defence 13.
+    eq(Character.create("Fifth", "Troubadour", 5):defence(), 13, "book 5 Troubadour Defence")
+    -- Book 6 Warrior: COMBAT 8, 6th Rank, no armour -> Defence 14.
+    local b6 = Character.create("Sixth", "Warrior", 6)
+    eq(b6:armourBonus(), 0, "book 6 starts with no armour")
+    eq(b6:defence(), 14, "book 6 Warrior Defence matches the printed 14")
+    eq(#b6.possessions, 1, "book 6 starts with almost nothing")
+
+    -- Books pair up: 1-2, 3-4 and 5-6 share a profession table.
+    for _, pair in ipairs({ {1,2}, {3,4}, {5,6} }) do
+        for _, ability in ipairs(Rules.ABILITIES) do
+            eq(Rules.professionsFor(pair[1]).Rogue[ability],
+               Rules.professionsFor(pair[2]).Rogue[ability],
+               ("books %d and %d share %s"):format(pair[1], pair[2], ability))
+        end
+    end
+    -- ...and the tiers really do differ from one another.
+    check(Rules.professionsFor(1).Warrior.COMBAT ~= Rules.professionsFor(3).Warrior.COMBAT,
+        "tier 1 and tier 2 differ")
+    check(Rules.professionsFor(3).Warrior.COMBAT ~= Rules.professionsFor(5).Warrior.COMBAT,
+        "tier 2 and tier 3 differ")
+
+    -- Every starting score must still sit inside the 1-12 range.
+    for book = 1, #Rules.STARTING_BOOKS do
+        for _, profession in ipairs(Rules.PROFESSION_NAMES) do
+            for _, ability in ipairs(Rules.ABILITIES) do
+                local score = Rules.professionsFor(book)[profession][ability]
+                check(score >= Rules.ABILITY_MIN and score <= Rules.ABILITY_MAX,
+                    ("book %d %s %s in range"):format(book, profession, ability))
+            end
+        end
+    end
+
+    -- A character's kit must be its own, not shared template data.
+    local a = Character.create("A", "Warrior", 3)
+    local b = Character.create("B", "Warrior", 3)
+    a.possessions[1].name = "changed"
+    eq(b.possessions[1].name, "sword", "one character's gear does not affect another's")
+end
+
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)

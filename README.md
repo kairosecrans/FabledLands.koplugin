@@ -94,6 +94,13 @@ page turns and restarts.
 codewords (with a "do I have this one?" lookup), titles, blessings, the Ship's
 Manifest, money, and Rank advancement that rolls your permanent Stamina gain.
 
+**Starting in any book.** You need only one book to start, and a later one
+begins you further along. Character creation asks which book you are starting
+in and applies what that book prints: Rank, Stamina, money and starting gear,
+with ability scores from that book's own profession table. The books scale in
+pairs -- 1 and 2 share a table, 3 and 4 another, 5 and 6 a third -- with the
+initial range widening from 1-6 to 1-8, though the hard cap stays 12.
+
 One character travels the whole series, and codewords are never erased when you
 move between books, so characters are stored globally rather than per-document.
 You can keep several characters and switch between them.
