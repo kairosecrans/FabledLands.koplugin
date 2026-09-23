@@ -2,7 +2,7 @@
 Renders the Adventure Sheet and roll results as text.
 
 Kept free of KOReader dependencies so the wording can be unit-tested. Lines
-are written for a monospaced face (see Prompts.MONO_FACE) and kept under
+are written for a monospaced face (see Prompts.monoFace) and kept under
 about 40 columns so they survive a phone in portrait.
 
 @module koplugin.FabledLands.format

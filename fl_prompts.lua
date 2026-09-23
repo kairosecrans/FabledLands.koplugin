@@ -10,6 +10,7 @@ local ConfirmBox = require("ui/widget/confirmbox")
 local Font = require("ui/font")
 local InfoMessage = require("ui/widget/infomessage")
 local InputDialog = require("ui/widget/inputdialog")
+local logger = require("logger")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local SpinWidget = require("ui/widget/spinwidget")
 local UIManager = require("ui/uimanager")
@@ -18,7 +19,32 @@ local _ = require("gettext")
 local Prompts = {}
 
 --- A monospaced face, so the Adventure Sheet and combat log line up in columns.
-Prompts.MONO_FACE = Font:getFace("smallinfont")
+--
+-- Resolved on first use rather than at require time, and through a fallback
+-- chain. Font names are not a stable API between KOReader versions, and this
+-- module is pulled in by main.lua's very first require: a throw here happens
+-- before the plugin can register anything, so the whole plugin would vanish
+-- with no menu entry and no error anyone could act on. Losing the monospaced
+-- columns is a far smaller price.
+local FACE_NAMES = { "smallinfont", "infont", "smallinfofont", "infofont", "cfont" }
+local mono_face, mono_resolved
+
+function Prompts.monoFace()
+    if not mono_resolved then
+        mono_resolved = true
+        for _i, name in ipairs(FACE_NAMES) do
+            local ok, face = pcall(Font.getFace, Font, name)
+            if ok and face then
+                mono_face = face
+                break
+            end
+        end
+        if not mono_face then
+            logger.warn("Fabled Lands: no usable font face; falling back to the widget default")
+        end
+    end
+    return mono_face
+end
 
 function Prompts.info(text, timeout)
     UIManager:show(InfoMessage:new{ text = text, timeout = timeout })
@@ -158,7 +184,7 @@ function Prompts.panel(opts)
     dialog = ButtonDialog:new{
         title = opts.title,
         title_align = opts.title_align or "left",
-        info_face = opts.face or Prompts.MONO_FACE,
+        info_face = opts.face or Prompts.monoFace(),
         dismissable = opts.dismissable ~= false,
         buttons = rows,
     }

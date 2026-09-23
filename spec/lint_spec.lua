@@ -66,6 +66,25 @@ for _i, path in ipairs(files) do
         check(true, path .. " keeps `_` bound to gettext")
     end
 
+
+    -- Nothing may call into a KOReader API at module level. main.lua requires
+    -- these modules before it can register anything, so a throw out here takes
+    -- the whole plugin down with no menu entry and no actionable error -- a
+    -- failure mode that is invisible on Android, where there is no crash.log.
+    do
+        local line_no = 0
+        for line in (text .. "\n"):gmatch("(.-)\n") do
+            line_no = line_no + 1
+            -- A top-level assignment (no leading whitespace) whose value calls
+            -- a method on a module, e.g. `X.Y = Font:getFace("...")`.
+            if line:match("^[%w_.]+%s*=%s*[A-Z][%w_]*[:.][%w_]+%s*%(") then
+                check(false, path .. " does no work at module load time",
+                    ("line %d: %s"):format(line_no, line:match("^%s*(.-)%s*$")))
+            end
+        end
+        check(true, path .. " defers KOReader calls to runtime")
+    end
+
     -- Module names must stay namespaced: package.path is shared across every
     -- loaded plugin, so a bare `require("rules")` could pick up a different
     -- plugin's file depending on load order.
