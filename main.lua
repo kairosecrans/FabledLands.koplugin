@@ -12,15 +12,18 @@ erased when you move between books, come along with them.
 @module koplugin.FabledLands
 --]]--
 
+local Badge = require("fl_badge")
 local Character = require("fl_character")
 local Combat = require("fl_combat")
 local DataStorage = require("datastorage")
 local Dispatcher = require("dispatcher")
+local Event = require("ui/event")
 local Format = require("fl_format")
 local Inventory = require("fl_inventory")
 local LuaSettings = require("luasettings")
 local Prompts = require("fl_prompts")
 local Rules = require("fl_rules")
+local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
 
@@ -38,6 +41,11 @@ function FabledLands:init()
     self.roster = self.settings:readSetting("characters", {})
     self.active = self.settings:readSetting("active", 1)
     self:useCharacter(self.active)
+
+    -- A fight left minimised should still be minimised after a restart,
+    -- rather than silently vanishing.
+    self.minimised = self.settings:readSetting("minimised")
+    if self.minimised then self:showBadge() end
 
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
@@ -78,12 +86,116 @@ function FabledLands:onDispatcherRegisterActions()
         title = _("Fabled Lands: ability roll"),
         general = true,
     })
+    -- Worth binding to a gesture: it reopens whatever you minimised, without
+    -- the stray page turn a tap on the badge can cause.
+    Dispatcher:registerAction("fabledlands_restore", {
+        category = "none",
+        event = "FabledLandsRestore",
+        title = _("Fabled Lands: restore minimised"),
+        general = true,
+    })
+end
+
+-- Minimising ---------------------------------------------------------------
+
+--- Hides the plugin behind a small floating badge, remembering exactly how to
+-- come back. Any screen can call this: it hands over a closure that reopens
+-- itself, so a half-typed stat block or a deep list comes back as it was.
+--
+-- The closure cannot survive a restart, so a plain name is stored alongside
+-- it; after a restart the badge reappears and falls back to that screen.
+-- @func reopen called on restore to rebuild the screen
+-- @string name coarse fallback: "combat" or "sheet"
+function FabledLands:minimise(reopen, name)
+    self.reopen = reopen
+    self.minimised = name or "sheet"
+    self.settings:saveSetting("minimised", self.minimised)
+    self.settings:flush()
+    self:showBadge()
+end
+
+function FabledLands:showBadge()
+    self:hideBadge()
+    if not self.minimised or not self.character then return end
+
+    self.badge = Badge:new{
+        text = Format.badge(self.character, self.character.fight),
+        on_tap = function() self:restore() end,
+    }
+    -- The refresh type matters: show() without one queues the widget but
+    -- never actually paints it, so the badge would be invisible.
+    UIManager:show(self.badge, "ui", self.badge.dimen)
+end
+
+function FabledLands:hideBadge()
+    if self.badge then
+        UIManager:close(self.badge)
+        self.badge = nil
+    end
+end
+
+--- Undoes the page turn a badge tap causes in passing.
+--
+-- A toast never stops event propagation -- that is the whole reason page
+-- turns still work while the badge is up -- but it means the tap that
+-- restores also reaches the reader and moves the page. So note where we
+-- were, let the turn happen, then put it back on the next tick.
+function FabledLands:keepPagePut()
+    if not (self.ui and self.ui.document and self.ui.getCurrentPage) then return end
+    local ok, before = pcall(function() return self.ui:getCurrentPage() end)
+    if not ok or not before then return end
+
+    UIManager:nextTick(function()
+        local fine, after = pcall(function() return self.ui:getCurrentPage() end)
+        if fine and after and after ~= before then
+            self.ui:handleEvent(Event:new("GotoPage", before))
+        end
+    end)
+end
+
+--- Reopens exactly the screen that was minimised.
+function FabledLands:restore()
+    local reopen, screen = self.reopen, self.minimised
+    self.reopen, self.minimised = nil, nil
+    self.settings:delSetting("minimised")
+    self.settings:flush()
+    self:keepPagePut()
+    self:hideBadge()
+
+    if reopen then
+        -- Same session: rebuild the exact screen, partial input and all.
+        reopen()
+    elseif screen == "combat" and self.character and self.character.fight then
+        -- After a restart the closure is gone, so fall back to the fight.
+        Combat.show(self)
+    else
+        self:showSheet()
+    end
+end
+
+function FabledLands:onFabledLandsRestore()
+    if self.minimised then
+        self:restore()
+    else
+        self:showSheet()
+    end
+    return true
+end
+
+--- The badge must be torn down with the document, or it would paint over the
+-- file manager after the book closes.
+function FabledLands:onCloseWidget()
+    self:hideBadge()
 end
 
 function FabledLands:addToMainMenu(menu_items)
     menu_items.fabled_lands = {
         text = _("Fabled Lands"),
-        sorting_hint = "more_tools",
+        -- While reading, sit in the first tab of the reader menu: Tools ->
+        -- More tools is four taps deep, which is painful when you are
+        -- flipping back and forth mid-fight. In the file manager there is no
+        -- such urgency, so leave it with the other tools.
+        sorting_hint = self.ui.document and "navi" or "more_tools",
         callback = function() self:showSheet() end,
     }
 end
@@ -143,6 +255,14 @@ function FabledLands:showSheet()
                 {
                     text = _("More"),
                     callback = function() self:showMore() end,
+                },
+            },
+            {
+                {
+                    text = _("Minimise"),
+                    callback = function()
+                        self:minimise(function() self:showSheet() end, "sheet")
+                    end,
                 },
             },
         },
@@ -211,6 +331,13 @@ function FabledLands:showRoll()
         })
     end
 
+    table.insert(items, {
+        text = _("Minimise"),
+        callback = function()
+            self:minimise(function() self:showRoll() end, "sheet")
+        end,
+    })
+
     Prompts.menu{
         title = _("Which ability is the book asking for?"),
         items = items,
@@ -245,6 +372,13 @@ function FabledLands:rollAbility(ability, difficulty)
             {
                 text = _("Another ability"),
                 callback = function() self:showRoll() end,
+            },
+        }, {
+            {
+                text = _("Minimise"),
+                callback = function()
+                    self:minimise(function() self:rollAbility(ability, difficulty) end, "sheet")
+                end,
             },
         } },
         close_text = _("Adventure Sheet"),

@@ -139,6 +139,11 @@ function Inventory.possessions(plugin)
         end,
     })
 
+    table.insert(items, {
+        text = _("Minimise"),
+        callback = function() plugin:minimise(back, "sheet") end,
+    })
+
     Prompts.menu{
         title = ("%s  %d/%d\n\n%s"):format(_("Possessions"), #character.possessions,
             Rules.MAX_POSSESSIONS, _("Only your best weapon and armour count.")),
@@ -209,6 +214,11 @@ function Inventory.codewords(plugin)
                 end,
             }
         end,
+    })
+
+    table.insert(items, {
+        text = _("Minimise"),
+        callback = function() plugin:minimise(back, "sheet") end,
     })
 
     Prompts.menu{

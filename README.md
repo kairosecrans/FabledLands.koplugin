@@ -72,6 +72,24 @@ the enemy the first strike), for drinking a potion mid-fight, and for fleeing.
 A fight is saved as you go, so you can close the panel to re-read the page and
 pick it up again.
 
+**Situational modifiers.** The books regularly adjust a fight: a bonus for
+carrying a particular item, a penalty for fighting in the dark. **Modifiers**
+takes a signed adjustment to your attack rolls and another to your Defence,
+both lasting only for that fight and never touching your sheet. The panel
+spells out what is in force (`this fight: attack +3`) so a surprising number
+is always traceable.
+
+**Several foes at once.** When the book says to fight them one at a time,
+**Next enemy** continues the *same* fight: your Stamina, the round count, the
+log and the modifiers all carry over rather than resetting.
+
+**Minimising.** Every screen has a **Minimise** button. It tucks the plugin
+into a small badge in the left margin showing the enemy's and your Stamina,
+leaving the page readable so you can check a stat block mid-fight. Tapping the
+badge returns you to exactly where you were -- including a half-typed stat
+block, with the numbers you had already entered still in place. It survives
+page turns and restarts.
+
 **The rest of the sheet** — possessions with the 12-item carry limit,
 codewords (with a "do I have this one?" lookup), titles, blessings, the Ship's
 Manifest, money, and Rank advancement that rolls your permanent Stamina gain.
@@ -102,12 +120,14 @@ git clone https://github.com/kairosecrans/FabledLands.koplugin.git ~/.config/kor
 Copy the folder to `.adds/koreader/plugins/` (Kobo) or `koreader/plugins/`
 (Kindle), keeping the `FabledLands.koplugin` name.
 
-Then restart KOReader. The plugin appears under **Tools → More tools → Fabled
-Lands**, in both the file manager and while reading.
+Then restart KOReader. While reading, the plugin sits in the **first tab of
+the reader menu**, next to Table of contents -- two taps from the page, since
+you reach for it constantly mid-fight. In the file manager it lives with the
+other tools, under **Tools → More tools → Fabled Lands**.
 
-If you would rather reach it without digging through menus, it also registers
-two actions you can bind to a gesture or key: *Fabled Lands: Adventure Sheet*
-and *Fabled Lands: ability roll*.
+It also registers three actions you can bind to a gesture or key: *Fabled
+Lands: Adventure Sheet*, *Fabled Lands: ability roll*, and *Fabled Lands:
+restore minimised*.
 
 Your characters are stored in KOReader's settings directory as
 `fabledlands.lua`, well away from the plugin folder, so updating or reinstalling

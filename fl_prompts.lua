@@ -77,28 +77,42 @@ function Prompts.text(opts)
 end
 
 --- Asks for several values at once.
--- @tparam table opts title, fields (as MultiInputDialog), ok_text, callback(values)
+-- `extra` adds a third button that receives whatever has been typed so far,
+-- which is how a half-filled form can be minimised and come back intact.
+-- @tparam table opts title, fields (as MultiInputDialog), ok_text, callback(values), extra
 function Prompts.fields(opts)
     local dialog
+    local row = {
+        {
+            text = _("Cancel"),
+            id = "close",
+            callback = function() UIManager:close(dialog) end,
+        },
+        {
+            text = opts.ok_text or _("OK"),
+            is_enter_default = true,
+            callback = function()
+                local values = dialog:getFields()
+                UIManager:close(dialog)
+                opts.callback(values)
+            end,
+        },
+    }
+    if opts.extra then
+        table.insert(row, 2, {
+            text = opts.extra.text,
+            callback = function()
+                local values = dialog:getFields()
+                UIManager:close(dialog)
+                opts.extra.callback(values)
+            end,
+        })
+    end
+
     dialog = MultiInputDialog:new{
         title = opts.title,
         fields = opts.fields,
-        buttons = { {
-            {
-                text = _("Cancel"),
-                id = "close",
-                callback = function() UIManager:close(dialog) end,
-            },
-            {
-                text = opts.ok_text or _("OK"),
-                is_enter_default = true,
-                callback = function()
-                    local values = dialog:getFields()
-                    UIManager:close(dialog)
-                    opts.callback(values)
-                end,
-            },
-        } },
+        buttons = { row },
     }
     UIManager:show(dialog)
     dialog:onShowKeyboard()

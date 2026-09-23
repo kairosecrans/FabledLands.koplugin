@@ -224,5 +224,69 @@ do
     eq(Format.rank(hero), "2nd Rank Commoner", "rank line after advancing")
 end
 
+-- Situational modifiers ----------------------------------------------------
+-- The books hand out penalties as well as bonuses, so these must be signed.
+do
+    local hero = Character.create("Fighter", "Warrior")
+    local fight = {
+        name = "Goblin", combat = 5, defence = 7, stamina = 6, stamina_max = 6,
+        round = 0, log = {}, attack_mod = 0, defence_mod = 0,
+    }
+
+    contains(Format.modifiers(fight), "No modifiers", "says so when none are set")
+
+    fight.attack_mod = 3
+    local text = Format.modifiers(fight)
+    contains(text, "attack rolls", "attack modifier labelled")
+    contains(text, "+3", "bonus is signed")
+    lacks(text, "your Defence", "unset Defence modifier is not listed")
+
+    fight.defence_mod = -1
+    local both = Format.modifiers(fight)
+    contains(both, "+3", "bonus still shown")
+    contains(both, "-1", "penalty shown as negative")
+
+    -- The panel shows them, and the Defence modifier moves the displayed
+    -- Defence without touching the sheet.
+    local panel = Format.fight(hero, fight)
+    contains(panel, "this fight", "panel calls out the modifiers")
+    contains(panel, "attack +3", "panel shows the attack modifier")
+    contains(panel, "Defence -1", "panel shows the Defence modifier")
+    eq(hero:defence(), 8, "the sheet Defence is untouched")
+    contains(panel, "Defence 7 ", "displayed Defence is 8 - 1 = 7")
+
+    -- A fight saved before modifiers existed must still render.
+    local legacy = {
+        name = "Old", combat = 3, defence = 5, stamina = 4, stamina_max = 4,
+        round = 0, log = {},
+    }
+    contains(Format.fight(hero, legacy), "Old", "legacy fight renders")
+    lacks(Format.fight(hero, legacy), "this fight", "legacy fight shows no modifier line")
+    contains(Format.modifiers(legacy), "No modifiers", "legacy fight has no modifiers")
+end
+
+-- The minimised badge ------------------------------------------------------
+do
+    local hero = Character.create("Marana", "Rogue")
+    hero:takeDamage(3)
+
+    local sheet_badge = Format.badge(hero, nil)
+    contains(sheet_badge, "Marana", "badge names the character")
+    contains(sheet_badge, "6/9", "badge shows Stamina")
+
+    local fight = { name = "Goblin", combat = 5, defence = 7, stamina = 2, stamina_max = 6 }
+    local fight_badge = Format.badge(hero, fight)
+    contains(fight_badge, "Goblin", "badge names the enemy")
+    contains(fight_badge, "2/6", "badge shows enemy Stamina")
+    contains(fight_badge, "6/9", "badge shows your Stamina")
+
+    -- Long names must not make the badge sprawl across the page. The cap is
+    -- on the badge as a whole, not on the difference between two names.
+    local long = Format.badge(hero, { name = "Ravening Beast of Xane",
+        combat = 5, defence = 7, stamina = 2, stamina_max = 6 })
+    lacks(long, "Ravening Beast", "the full long name is not shown")
+    check(#long <= 32, "badge stays narrow", ("%d chars"):format(#long))
+end
+
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)

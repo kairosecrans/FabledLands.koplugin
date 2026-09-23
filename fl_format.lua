@@ -154,8 +154,40 @@ function Format.blow(who, result)
         result.total, result.defence, outcome)
 end
 
+--- Describes the situational modifiers in force, for the modifiers screen.
+function Format.modifiers(fight)
+    local attack = fight.attack_mod or 0
+    local defence = fight.defence_mod or 0
+    if attack == 0 and defence == 0 then
+        return "No modifiers in force.\n\nUse these when the book adjusts a\nfight, such as a bonus for carrying a\nparticular item."
+    end
+    local lines = { "For this fight only:" }
+    if attack ~= 0 then
+        table.insert(lines, ("  attack rolls  %s"):format(signed(attack)))
+    end
+    if defence ~= 0 then
+        table.insert(lines, ("  your Defence  %s"):format(signed(defence)))
+    end
+    return table.concat(lines, "\n")
+end
+
+--- A short label for the minimised badge: enough to see the fight's state at
+-- a glance without opening it.
+function Format.badge(character, fight)
+    if fight then
+        local who = fight.name ~= "" and fight.name:sub(1, 10) or "Enemy"
+        return ("%s %d/%d  You %d/%d"):format(
+            who, fight.stamina, fight.stamina_max, character.stamina, character.stamina_max)
+    end
+    return ("%s  %d/%d"):format(
+        character.name ~= "" and character.name:sub(1, 12) or "Sheet",
+        character.stamina, character.stamina_max)
+end
+
 --- The combat panel: both combatants' state, then the round log.
 function Format.fight(character, fight)
+    local attack_mod = fight.attack_mod or 0
+    local defence_mod = fight.defence_mod or 0
     local lines = {
         fight.name ~= "" and fight.name or "The enemy",
         ("  COMBAT %d   Defence %d   Stamina %d/%d")
@@ -163,8 +195,17 @@ function Format.fight(character, fight)
         "",
         "You",
         ("  COMBAT %d   Defence %d   Stamina %d/%d")
-            :format(character.abilities.COMBAT, character:defence(), character.stamina, character.stamina_max),
+            :format(character.abilities.COMBAT, character:defence() + defence_mod,
+                character.stamina, character.stamina_max),
     }
+    -- Spell the modifiers out, so a surprising number on the sheet is
+    -- traceable to the rule that caused it.
+    if attack_mod ~= 0 or defence_mod ~= 0 then
+        local parts = {}
+        if attack_mod ~= 0 then table.insert(parts, ("attack %s"):format(signed(attack_mod))) end
+        if defence_mod ~= 0 then table.insert(parts, ("Defence %s"):format(signed(defence_mod))) end
+        table.insert(lines, ("  this fight: %s"):format(table.concat(parts, ", ")))
+    end
     if #fight.log > 0 then
         table.insert(lines, "")
         for _, entry in ipairs(fight.log) do
