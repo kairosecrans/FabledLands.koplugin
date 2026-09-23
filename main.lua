@@ -21,6 +21,7 @@ local Event = require("ui/event")
 local Format = require("fl_format")
 local Inventory = require("fl_inventory")
 local LuaSettings = require("luasettings")
+local logger = require("logger")
 local Prompts = require("fl_prompts")
 local Rules = require("fl_rules")
 local UIManager = require("ui/uimanager")
@@ -37,18 +38,41 @@ local FabledLands = WidgetContainer:extend{
 }
 
 function FabledLands:init()
-    self.settings = LuaSettings:open(DataStorage:getSettingsDir() .. "/fabledlands.lua")
-    self.roster = self.settings:readSetting("characters", {})
-    self.active = self.settings:readSetting("active", 1)
-    self:useCharacter(self.active)
-
-    -- A fight left minimised should still be minimised after a restart,
-    -- rather than silently vanishing.
-    self.minimised = self.settings:readSetting("minimised")
-    if self.minimised then self:showBadge() end
-
-    self:onDispatcherRegisterActions()
+    -- Register the menu entry first, and never behind anything that can fail.
+    -- Everything below touches the filesystem, the dispatcher or the widget
+    -- stack, any of which might behave differently on a KOReader build this
+    -- has not been tried against. If one of them throws while registration is
+    -- still pending, the plugin loads with no way to reach it -- which is
+    -- indistinguishable, from the outside, from not loading at all.
     self.ui.menu:registerToMainMenu(self)
+
+    local ok, err = pcall(function()
+        self.settings = LuaSettings:open(DataStorage:getSettingsDir() .. "/fabledlands.lua")
+        self.roster = self.settings:readSetting("characters", {})
+        self.active = self.settings:readSetting("active", 1)
+        self:useCharacter(self.active)
+        self:onDispatcherRegisterActions()
+    end)
+    if not ok then
+        -- Recorded rather than swallowed: the menu entry reports it, so a
+        -- failure is visible instead of silent.
+        self.startup_error = tostring(err)
+        logger.warn("Fabled Lands: startup failed:", err)
+        self.roster = self.roster or {}
+    end
+
+    -- The badge is the most version-sensitive part of the plugin, so it is
+    -- kept out of the path that everything else depends on.
+    if self.settings then
+        local fine, oops = pcall(function()
+            self.minimised = self.settings:readSetting("minimised")
+            if self.minimised then self:showBadge() end
+        end)
+        if not fine then
+            self.minimised = nil
+            logger.warn("Fabled Lands: could not restore the badge:", oops)
+        end
+    end
 end
 
 -- Persistence --------------------------------------------------------------
@@ -66,6 +90,7 @@ end
 --- Writes the roster to disk. Called after every change, because losing an
 -- hour of adventuring to a crash would be worse than a few extra writes.
 function FabledLands:save()
+    if not self.settings then return end
     self.settings:saveSetting("characters", self.roster)
     self.settings:saveSetting("active", self.active)
     self.settings:flush()
@@ -109,8 +134,10 @@ end
 function FabledLands:minimise(reopen, name)
     self.reopen = reopen
     self.minimised = name or "sheet"
-    self.settings:saveSetting("minimised", self.minimised)
-    self.settings:flush()
+    if self.settings then
+        self.settings:saveSetting("minimised", self.minimised)
+        self.settings:flush()
+    end
     self:showBadge()
 end
 
@@ -157,8 +184,10 @@ end
 function FabledLands:restore()
     local reopen, screen = self.reopen, self.minimised
     self.reopen, self.minimised = nil, nil
-    self.settings:delSetting("minimised")
-    self.settings:flush()
+    if self.settings then
+        self.settings:delSetting("minimised")
+        self.settings:flush()
+    end
     self:keepPagePut()
     self:hideBadge()
 
@@ -217,6 +246,13 @@ end
 -- The Adventure Sheet ------------------------------------------------------
 
 function FabledLands:showSheet()
+    if self.startup_error then
+        Prompts.panel{
+            title = ("Fabled Lands could not start up.\n\n%s\n\nPlease report this with your KOReader version."):format(self.startup_error),
+            buttons = {},
+        }
+        return
+    end
     if not self.character then
         self:showWelcome()
         return
