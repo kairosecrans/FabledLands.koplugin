@@ -237,14 +237,14 @@ local function existingSection(is_reader, wanted)
 end
 
 function FabledLands:addToMainMenu(menu_items)
-    -- While reading, sit in the first tab of the reader menu: Tools -> More
-    -- tools is several taps deep, which is painful when you are flipping back
-    -- and forth mid-fight. In the file manager there is no such urgency, so
-    -- leave it with the other tools.
-    local is_reader = self.ui.document ~= nil
+    -- One location, both contexts. An earlier version put this in the reader's
+    -- navigation tab to save taps while reading, which was a mistake: the same
+    -- plugin then lived in two different places depending on whether a book
+    -- was open, and "it moved" is indistinguishable from "it broke". Bind a
+    -- gesture to the dispatcher actions if you want it faster than a menu.
     menu_items.fabled_lands = {
         text = _("Fabled Lands"),
-        sorting_hint = existingSection(is_reader, is_reader and "navi" or "more_tools"),
+        sorting_hint = existingSection(self.ui.document ~= nil, "more_tools"),
         callback = function() self:showSheet() end,
     }
 end
