@@ -24,6 +24,7 @@ local LuaSettings = require("luasettings")
 local logger = require("logger")
 local Prompts = require("fl_prompts")
 local Rules = require("fl_rules")
+local Sections = require("fl_sections")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
@@ -113,12 +114,134 @@ function FabledLands:onDispatcherRegisterActions()
     })
     -- Worth binding to a gesture: it reopens whatever you minimised, without
     -- the stray page turn a tap on the badge can cause.
+    Dispatcher:registerAction("fabledlands_section", {
+        category = "none",
+        event = "FabledLandsSection",
+        title = _("Fabled Lands: turn to section"),
+        general = true,
+    })
     Dispatcher:registerAction("fabledlands_restore", {
         category = "none",
         event = "FabledLandsRestore",
         title = _("Fabled Lands: restore minimised"),
         general = true,
     })
+end
+
+-- Turning to a section -----------------------------------------------------
+
+--- Asks for a section number and jumps to the page it is printed on.
+--
+-- Section numbers are not page numbers, so this binary-searches the book's
+-- own text. It needs a text layer: a scan without OCR, or a reflowable EPUB
+-- with no printed markers, will find nothing, and the failure says so rather
+-- than jumping somewhere arbitrary.
+function FabledLands:turnToSection()
+    if not (self.ui and self.ui.document) then
+        Prompts.info(_("Open a gamebook first."))
+        return
+    end
+    local doc = self:documentName()
+    local trail = self.character and self.character:sectionTrail(doc) or {}
+
+    local items = { {
+        text = _("Enter a section number"),
+        callback = function() self:askSection() end,
+    } }
+    -- Somewhere you have already been needs no search: the page was recorded
+    -- the first time, so going back is immediate.
+    for _i, entry in ipairs(trail) do
+        table.insert(items, {
+            text = ("Section %d   (page %d)"):format(entry.section, entry.page),
+            callback = function()
+                self.ui:handleEvent(Event:new("GotoPage", entry.page))
+            end,
+        })
+    end
+    if #trail > 0 then
+        table.insert(items, {
+            text = _("Forget this book's trail"),
+            callback = function()
+                Prompts.confirm{
+                    text = _("Forget the sections visited in this book?"),
+                    ok_text = _("Forget"),
+                    ok_callback = function()
+                        self.character:clearTrail(doc)
+                        self:save()
+                        self:turnToSection()
+                    end,
+                    cancel_callback = function() self:turnToSection() end,
+                }
+            end,
+        })
+    end
+
+    Prompts.menu{
+        title = #trail > 0
+            and _("Turn to section\n\nRecently visited, most recent first:")
+            or _("Turn to section"),
+        items = items,
+        close_callback = function() self:showSheet() end,
+    }
+end
+
+--- The document's filename, used to keep one book's trail out of another's.
+function FabledLands:documentName()
+    local file = self.ui and self.ui.document and self.ui.document.file
+    return file and file:match("([^/]+)$") or "?"
+end
+
+function FabledLands:askSection()
+    Prompts.number{
+        title = _("Turn to section"),
+        info = _("The number the book tells you to turn to."),
+        value = self.last_section or 1,
+        min = 1,
+        max = Sections.MAX_SECTION,
+        hold_step = 25,
+        ok_text = _("Find"),
+        callback = function(target)
+            self.last_section = target
+            self:jumpToSection(target)
+        end,
+    }
+end
+
+function FabledLands:jumpToSection(target)
+    local document = self.ui.document
+    local found
+    local ok = pcall(function() found = Sections.find(document, target) end)
+
+    if not ok or not found then
+        Prompts.info(_([[Could not read section numbers from this book.
+
+It needs a text layer -- a scan that has been through OCR. Use the reader's own "Go to page" instead.]]))
+        return
+    end
+
+    local here = self.ui.getCurrentPage and select(2, pcall(function()
+        return self.ui:getCurrentPage() end)) or nil
+    local summary = found.exact
+        and ("Section %d is on page %d."):format(target, found.page)
+        or ("Section %d was not found.\n\nThe closest match is page %d."):format(target, found.page)
+    if here then
+        summary = summary .. ("\n\nYou are on page %d."):format(here)
+    end
+
+    Prompts.panel{
+        title = summary,
+        buttons = { { {
+            text = ("Turn to page %d"):format(found.page),
+            callback = function()
+                if self.character and found.exact then
+                    self.character:recordSection(target, found.page, self:documentName())
+                    self:save()
+                end
+                self.ui:handleEvent(Event:new("GotoPage", found.page))
+            end,
+        } } },
+        close_text = _("Stay here"),
+    }
 end
 
 -- Minimising ---------------------------------------------------------------
@@ -200,6 +323,11 @@ function FabledLands:restore()
     else
         self:showSheet()
     end
+end
+
+function FabledLands:onFabledLandsSection()
+    self:turnToSection()
+    return true
 end
 
 function FabledLands:onFabledLandsRestore()
@@ -314,6 +442,11 @@ function FabledLands:showSheet()
                 },
             },
             {
+                {
+                    text = _("Turn to section"),
+                    enabled = self.ui.document ~= nil,
+                    callback = function() self:turnToSection() end,
+                },
                 {
                     text = _("Minimise"),
                     callback = function()

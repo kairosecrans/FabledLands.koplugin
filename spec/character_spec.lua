@@ -407,5 +407,55 @@ do
     eq(later.rank, 5, "still 5th Rank")
 end
 
+-- The trail of sections visited -------------------------------------------
+do
+    local hero = Character.create("Wanderer", "Rogue")
+    eq(#hero:sectionTrail("book1.pdf"), 0, "trail starts empty")
+
+    hero:recordSection(1, 9, "book1.pdf")
+    hero:recordSection(20, 14, "book1.pdf")
+    hero:recordSection(38, 20, "book1.pdf")
+
+    local trail = hero:sectionTrail("book1.pdf")
+    eq(#trail, 3, "three sections remembered")
+    eq(trail[1].section, 38, "most recent first")
+    eq(trail[1].page, 20, "with the page it was on")
+    eq(trail[3].section, 1, "oldest last")
+
+    -- Page numbers mean nothing in another book, so trails are kept apart.
+    hero:recordSection(7, 55, "book3.pdf")
+    eq(#hero:sectionTrail("book1.pdf"), 3, "the other book's trail is unaffected")
+    eq(#hero:sectionTrail("book3.pdf"), 1, "and has its own")
+    eq(hero:sectionTrail("book3.pdf")[1].page, 55, "with its own page")
+
+    -- Re-visiting moves a section up rather than duplicating it.
+    hero:recordSection(20, 14, "book1.pdf")
+    local again = hero:sectionTrail("book1.pdf")
+    eq(#again, 3, "still three, not four")
+    eq(again[1].section, 20, "the revisited section is now most recent")
+
+    -- The trail is capped, oldest dropped first.
+    for n = 100, 100 + Character.TRAIL_LENGTH do
+        hero:recordSection(n, n, "book1.pdf")
+    end
+    local capped = hero:sectionTrail("book1.pdf")
+    check(#capped <= Character.TRAIL_LENGTH, "trail is capped",
+        ("%d entries"):format(#capped))
+    eq(capped[1].section, 100 + Character.TRAIL_LENGTH, "newest survives")
+
+    hero:clearTrail("book1.pdf")
+    eq(#hero:sectionTrail("book1.pdf"), 0, "trail cleared for that book")
+    eq(#hero:sectionTrail("book3.pdf"), 1, "but not for the other")
+
+    -- It survives a round-trip through storage.
+    local function strip(v)
+        if type(v) ~= "table" then return v end
+        local c = {} for k, x in pairs(v) do c[k] = strip(x) end return c
+    end
+    local revived = Character.restore(strip(hero))
+    eq(#revived:sectionTrail("book3.pdf"), 1, "trail persists")
+    eq(revived:sectionTrail("book3.pdf")[1].section, 7, "with its section")
+end
+
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)

@@ -75,6 +75,7 @@ function Character.restore(data)
     data.titles = data.titles or {}
     data.blessings = data.blessings or {}
     data.rank_gains = data.rank_gains or {}
+    data.trail = data.trail or {}
     data.rank = data.rank or 1
     data.shards = data.shards or 0
     data.stamina_max = data.stamina_max or Rules.STARTING_STAMINA
@@ -264,6 +265,56 @@ function Character:removeCodeword(word)
         end
     end
     return false
+end
+
+-- Where you have been ------------------------------------------------------
+
+--- How many section jumps to remember.
+Character.TRAIL_LENGTH = 30
+
+--- Records a section you turned to, so you can get back to it.
+--
+-- The page is stored alongside, which makes returning instant -- no search --
+-- and the document too, because a page number means nothing in a different
+-- book. Re-visiting a section moves it to the top rather than duplicating it.
+function Character:recordSection(section, page, doc)
+    self.trail = self.trail or {}
+    for i = #self.trail, 1, -1 do
+        local entry = self.trail[i]
+        if entry.section == section and entry.doc == doc then
+            table.remove(self.trail, i)
+        end
+    end
+    table.insert(self.trail, { section = section, page = page, doc = doc })
+
+    -- Trim per document, not globally: reading deeply into one book must not
+    -- silently evict the trail you left in another.
+    local seen = 0
+    for i = #self.trail, 1, -1 do
+        if self.trail[i].doc == doc then
+            seen = seen + 1
+            if seen > Character.TRAIL_LENGTH then table.remove(self.trail, i) end
+        end
+    end
+end
+
+--- The sections visited in a given book, most recent first.
+-- Filtered by document: jumping to a page recorded in another book would
+-- land somewhere meaningless.
+function Character:sectionTrail(doc)
+    local out = {}
+    for i = #(self.trail or {}), 1, -1 do
+        local entry = self.trail[i]
+        if entry.doc == doc then out[#out + 1] = entry end
+    end
+    return out
+end
+
+function Character:clearTrail(doc)
+    if not self.trail then return end
+    for i = #self.trail, 1, -1 do
+        if self.trail[i].doc == doc then table.remove(self.trail, i) end
+    end
 end
 
 -- Blessings ----------------------------------------------------------------
