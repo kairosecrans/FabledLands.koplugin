@@ -1,4 +1,4 @@
-# fabledlands.koplugin
+# FabledLands.koplugin
 
 A KoReader plugin that keeps your Adventure Sheet and rolls the dice for the
 **Fabled Lands** gamebook series by Dave Morris and Jamie Thomson.
@@ -86,19 +86,19 @@ The repository *is* the plugin directory, so clone it straight into KoReader's
 **Android**
 
 ```bash
-git clone https://github.com/kairosecrans/fabledlands.koplugin.git /storage/emulated/0/koreader/plugins/fabledlands.koplugin
+git clone https://github.com/kairosecrans/fabledlands.koplugin.git /storage/emulated/0/koreader/plugins/FabledLands.koplugin
 ```
 
 **Linux (AppImage / desktop)**
 
 ```bash
-git clone https://github.com/kairosecrans/fabledlands.koplugin.git ~/.config/koreader/plugins/fabledlands.koplugin
+git clone https://github.com/kairosecrans/fabledlands.koplugin.git ~/.config/koreader/plugins/FabledLands.koplugin
 ```
 
 **Kobo / Kindle**
 
 Copy the folder to `.adds/koreader/plugins/` (Kobo) or `koreader/plugins/`
-(Kindle), keeping the `fabledlands.koplugin` name.
+(Kindle), keeping the `FabledLands.koplugin` name.
 
 Then restart KoReader. The plugin appears under **Tools → More tools → Fabled
 Lands**, in both the file manager and while reading.
