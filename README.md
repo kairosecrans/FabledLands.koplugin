@@ -10,6 +10,8 @@ checks and fights resolved round by round.
 The plugin is book-agnostic — it never reads the book you are reading, so it
 works with whatever edition or format you own.
 
+Vibe coded from top to bottom with Claude Opus 5 for my own personal use.
+
 ## What it does
 
 **The Adventure Sheet**
