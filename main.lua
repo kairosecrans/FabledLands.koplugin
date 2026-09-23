@@ -217,14 +217,34 @@ function FabledLands:onCloseWidget()
     self:hideBadge()
 end
 
+--- Returns `wanted` only if this build's menu actually has such a section.
+--
+-- MenuSorter does not tolerate an unknown sorting_hint: it looks the hint up,
+-- gets nil back, and immediately indexes the result, so the entry is lost.
+-- With no hint at all the item is appended to the first tab instead, which
+-- always works. Menu sections get renamed between KOReader versions, and a
+-- plugin you cannot reach is worse than one in a slightly odd place -- so the
+-- hint is used only once it has been confirmed present.
+local function existingSection(is_reader, wanted)
+    local module = is_reader and "ui/elements/reader_menu_order"
+        or "ui/elements/filemanager_menu_order"
+    local ok, order = pcall(require, module)
+    if ok and type(order) == "table" and order[wanted] ~= nil then
+        return wanted
+    end
+    logger.warn("Fabled Lands: no", wanted, "menu section on this build; using the default")
+    return nil
+end
+
 function FabledLands:addToMainMenu(menu_items)
+    -- While reading, sit in the first tab of the reader menu: Tools -> More
+    -- tools is several taps deep, which is painful when you are flipping back
+    -- and forth mid-fight. In the file manager there is no such urgency, so
+    -- leave it with the other tools.
+    local is_reader = self.ui.document ~= nil
     menu_items.fabled_lands = {
         text = _("Fabled Lands"),
-        -- While reading, sit in the first tab of the reader menu: Tools ->
-        -- More tools is four taps deep, which is painful when you are
-        -- flipping back and forth mid-fight. In the file manager there is no
-        -- such urgency, so leave it with the other tools.
-        sorting_hint = self.ui.document and "navi" or "more_tools",
+        sorting_hint = existingSection(is_reader, is_reader and "navi" or "more_tools"),
         callback = function() self:showSheet() end,
     }
 end
