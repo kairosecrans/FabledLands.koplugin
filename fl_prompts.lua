@@ -72,7 +72,9 @@ function Prompts.number(opts)
 end
 
 --- Asks for a line of text.
--- @tparam table opts title, description, value, hint, ok_text, callback
+-- Set `input_type = "number"` for a numeric keypad, which beats the spinner
+-- whenever the value could be three digits.
+-- @tparam table opts title, description, value, hint, input_type, ok_text, callback
 function Prompts.text(opts)
     local dialog
     dialog = InputDialog:new{
@@ -80,6 +82,7 @@ function Prompts.text(opts)
         description = opts.description,
         input = opts.value or "",
         input_hint = opts.hint,
+        input_type = opts.input_type,
         buttons = { {
             {
                 text = _("Cancel"),

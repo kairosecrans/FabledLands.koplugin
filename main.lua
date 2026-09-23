@@ -192,25 +192,34 @@ function FabledLands:documentName()
 end
 
 function FabledLands:askSection()
-    Prompts.number{
+    -- A typed field, not a spinner: these numbers run to three digits and
+    -- nobody wants to tap an arrow four hundred times.
+    Prompts.text{
         title = _("Turn to section"),
-        info = _("The number the book tells you to turn to."),
-        value = self.last_section or 1,
-        min = 1,
-        max = Sections.MAX_SECTION,
-        hold_step = 25,
-        ok_text = _("Find"),
-        callback = function(target)
+        description = _("The number the book tells you to turn to."),
+        hint = "412",
+        input_type = "number",
+        ok_text = _("Go"),
+        callback = function(text)
+            local target = tonumber(text)
+            if not target or target < 1 or target > Sections.MAX_SECTION then
+                Prompts.info(_("That is not a section number."))
+                return
+            end
             self.last_section = target
             self:jumpToSection(target)
         end,
     }
 end
 
+--- Searches for the section and goes there. No confirmation: the whole point
+-- is to replace flipping pages, and a dialog in the way defeats that.
+--
+-- A nearest match still moves, but says so afterwards in a notice that
+-- dismisses itself -- uncertainty is worth mentioning, not worth a prompt.
 function FabledLands:jumpToSection(target)
-    local document = self.ui.document
     local found
-    local ok = pcall(function() found = Sections.find(document, target) end)
+    local ok = pcall(function() found = Sections.find(self.ui.document, target) end)
 
     if not ok or not found then
         Prompts.info(_([[Could not read section numbers from this book.
@@ -219,29 +228,15 @@ It needs a text layer -- a scan that has been through OCR. Use the reader's own 
         return
     end
 
-    local here = self.ui.getCurrentPage and select(2, pcall(function()
-        return self.ui:getCurrentPage() end)) or nil
-    local summary = found.exact
-        and ("Section %d is on page %d."):format(target, found.page)
-        or ("Section %d was not found.\n\nThe closest match is page %d."):format(target, found.page)
-    if here then
-        summary = summary .. ("\n\nYou are on page %d."):format(here)
+    if self.character then
+        self.character:recordSection(target, found.page, self:documentName())
+        self:save()
     end
+    self.ui:handleEvent(Event:new("GotoPage", found.page))
 
-    Prompts.panel{
-        title = summary,
-        buttons = { { {
-            text = ("Turn to page %d"):format(found.page),
-            callback = function()
-                if self.character and found.exact then
-                    self.character:recordSection(target, found.page, self:documentName())
-                    self:save()
-                end
-                self.ui:handleEvent(Event:new("GotoPage", found.page))
-            end,
-        } } },
-        close_text = _("Stay here"),
-    }
+    if not found.exact then
+        Prompts.info(("Section %d was not found; this is the closest page."):format(target), 3)
+    end
 end
 
 -- Minimising ---------------------------------------------------------------
@@ -326,7 +321,13 @@ function FabledLands:restore()
 end
 
 function FabledLands:onFabledLandsSection()
-    self:turnToSection()
+    -- Straight to the input. The menu with the history behind it is reachable
+    -- from the Adventure Sheet; a gesture mid-read wants the fewest taps.
+    if self.ui and self.ui.document then
+        self:askSection()
+    else
+        Prompts.info(_("Open a gamebook first."))
+    end
     return true
 end
 
