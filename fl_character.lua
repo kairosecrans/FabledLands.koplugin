@@ -2,7 +2,7 @@
 The Adventure Sheet: a character's state, and the operations the rules allow
 on it.
 
-Like rules.lua this is plain Lua with no KoReader dependency, so it can be
+Like rules.lua this is plain Lua with no KOReader dependency, so it can be
 unit-tested. A character is an ordinary table with a metatable bolted on,
 which means it round-trips through LuaSettings without any conversion --
 persistence just stores the raw table and calls Character.restore() on the

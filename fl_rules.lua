@@ -1,7 +1,7 @@
 --[[--
 The Fabled Lands rules engine.
 
-Deliberately free of any KoReader dependency so it can be unit-tested with a
+Deliberately free of any KOReader dependency so it can be unit-tested with a
 bare Lua interpreter (see spec/rules_spec.lua).
 
 Rule references are to Book 1, "The War-Torn Kingdom", pp. 5-7:

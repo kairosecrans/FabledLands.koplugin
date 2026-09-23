@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Runs the Fabled Lands plugin test suites.
 #
-# Uses the LuaJIT bundled inside the KoReader AppImage if it has been
+# Uses the LuaJIT bundled inside the KOReader AppImage if it has been
 # extracted, otherwise whatever Lua interpreter is on PATH. The suites load
-# no KoReader modules, so any Lua 5.1+ will do.
+# no KOReader modules, so any Lua 5.1+ will do.
 
 set -uo pipefail
 cd "$(dirname "$0")"

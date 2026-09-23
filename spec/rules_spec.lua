@@ -2,7 +2,7 @@
 Unit tests for the Fabled Lands rules engine.
 
 Runs under any Lua 5.1+ interpreter, including the LuaJIT bundled with
-KoReader -- no KoReader modules are loaded. From the repository root:
+KOReader -- no KOReader modules are loaded. From the repository root:
 
     luajit spec/rules_spec.lua
 

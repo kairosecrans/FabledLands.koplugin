@@ -1,6 +1,6 @@
 # FabledLands.koplugin
 
-A KoReader plugin that keeps your Adventure Sheet and rolls the dice for the
+A KOReader plugin that keeps your Adventure Sheet and rolls the dice for the
 **Fabled Lands** gamebook series by Dave Morris and Jamie Thomson.
 
 It handles the bookkeeping so the only thing left to do by hand is turn to the
@@ -82,7 +82,7 @@ You can keep several characters and switch between them.
 
 ## Installing
 
-The repository *is* the plugin directory, so clone it straight into KoReader's
+The repository *is* the plugin directory, so clone it straight into KOReader's
 `plugins` folder. The directory name must end in `.koplugin`.
 
 **Android**
@@ -102,14 +102,14 @@ git clone https://github.com/kairosecrans/FabledLands.koplugin.git ~/.config/kor
 Copy the folder to `.adds/koreader/plugins/` (Kobo) or `koreader/plugins/`
 (Kindle), keeping the `FabledLands.koplugin` name.
 
-Then restart KoReader. The plugin appears under **Tools → More tools → Fabled
+Then restart KOReader. The plugin appears under **Tools → More tools → Fabled
 Lands**, in both the file manager and while reading.
 
 If you would rather reach it without digging through menus, it also registers
 two actions you can bind to a gesture or key: *Fabled Lands: Adventure Sheet*
 and *Fabled Lands: ability roll*.
 
-Your characters are stored in KoReader's settings directory as
+Your characters are stored in KOReader's settings directory as
 `fabledlands.lua`, well away from the plugin folder, so updating or reinstalling
 the plugin never touches them.
 
@@ -142,24 +142,24 @@ their Defence scores have to fall out of the formula.
 ```
 
 342 checks across four suites, run with any Lua 5.1+ interpreter — the suites
-load no KoReader modules. The script finds the LuaJIT bundled with KoReader if
+load no KOReader modules. The script finds the LuaJIT bundled with KOReader if
 an extracted AppImage is nearby, otherwise anything on `PATH`. Override with
 `LUA=/path/to/luajit ./run_tests.sh`.
 
 | file | |
 |---|---|
-| `fl_rules.lua` | Dice and the rules. No KoReader dependency. |
-| `fl_character.lua` | The Adventure Sheet model. No KoReader dependency. |
-| `fl_format.lua` | Renders sheets, rolls and fights as text. No KoReader dependency. |
-| `fl_prompts.lua` | Thin wrappers over the KoReader widgets. |
+| `fl_rules.lua` | Dice and the rules. No KOReader dependency. |
+| `fl_character.lua` | The Adventure Sheet model. No KOReader dependency. |
+| `fl_format.lua` | Renders sheets, rolls and fights as text. No KOReader dependency. |
+| `fl_prompts.lua` | Thin wrappers over the KOReader widgets. |
 | `fl_combat.lua` | The combat tracker. |
 | `fl_inventory.lua` | Editors for possessions, codewords and the rest. |
 | `main.lua` | Plugin lifecycle, menu, persistence. |
 
-The three rules-bearing modules are deliberately free of KoReader imports,
+The three rules-bearing modules are deliberately free of KOReader imports,
 which is what makes them testable from a bare interpreter.
 
-Modules are prefixed `fl_` because KoReader shares one `package.path` across
+Modules are prefixed `fl_` because KOReader shares one `package.path` across
 every loaded plugin: a bare `rules.lua` could be shadowed by another plugin's
 file depending on load order. `spec/lint_spec.lua` enforces the prefix, and
 also guards against rebinding `_` in files that use it as the gettext alias —
@@ -167,7 +167,7 @@ a shadowing bug that crashes only at the moment a button is tapped.
 
 ## Licence
 
-GPL-3.0, see [LICENSE](LICENSE). That sits comfortably with KoReader, which is
+GPL-3.0, see [LICENSE](LICENSE). That sits comfortably with KOReader, which is
 AGPL-3.0 and whose modules this plugin imports at runtime.
 
 *Fabled Lands* is the work of Dave Morris and Jamie Thomson. This plugin is an

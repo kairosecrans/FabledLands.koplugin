@@ -1,5 +1,5 @@
 --[[--
-Thin wrappers over the KoReader widgets this plugin uses, so the view code
+Thin wrappers over the KOReader widgets this plugin uses, so the view code
 reads as intent ("ask for a number") rather than widget plumbing.
 
 @module koplugin.FabledLands.prompts
