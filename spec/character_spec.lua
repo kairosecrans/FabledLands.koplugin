@@ -314,5 +314,71 @@ do
     eq(b.possessions[1].name, "sword", "one character's gear does not affect another's")
 end
 
+-- Losing a Rank, and undoing one ------------------------------------------
+do
+    -- A genuine Rank loss rolls its own die (Book 4).
+    local hero = Character.create("Faller", "Warrior", 4)   -- 4th Rank, 20 Stamina
+    eq(hero.rank, 4, "starts 4th Rank")
+    local loss = hero:rankDown(scripted(5))
+    eq(loss, 5, "rank loss rolled one die")
+    eq(hero.rank, 3, "Rank dropped")
+    eq(hero.stamina_max, 15, "unwounded score lost the die")
+    eq(hero.stamina, 15, "current Stamina cannot exceed the new maximum")
+    eq(hero:defence(), 13, "Defence follows the lower Rank")
+
+    -- It will not go below the lowest Rank.
+    local low = Character.create("Bottom", "Warrior", 1)
+    local nope, err = low:rankDown(scripted(3))
+    eq(nope, nil, "cannot drop below 1st Rank")
+    check(err ~= nil, "refusal explains itself")
+    eq(low.rank, 1, "Rank unchanged by a refused drop")
+
+    -- Stamina never falls below one point.
+    local frail = Character.create("Frail", "Mage", 2)
+    frail.stamina_max, frail.stamina = 2, 2
+    frail:rankDown(scripted(6))
+    eq(frail.stamina_max, 1, "unwounded score floors at 1")
+    eq(frail.stamina, 1, "current Stamina floors with it")
+end
+
+-- Undo reverses exactly, rather than rolling again.
+do
+    local hero = Character.create("Mistap", "Warrior")   -- 1st Rank, 9 Stamina
+    eq(hero:canUndoRankUp(), false, "nothing to undo at the start")
+
+    hero:rankUp(scripted(6))
+    eq(hero.rank, 2, "ranked up")
+    eq(hero.stamina_max, 15, "gained 6")
+    eq(hero:canUndoRankUp(), true, "the gain is remembered")
+
+    local back = hero:undoRankUp()
+    eq(back, 6, "undo returns the original roll, not a new one")
+    eq(hero.rank, 1, "Rank restored")
+    eq(hero.stamina_max, 9, "unwounded score exactly restored")
+    eq(hero.stamina, 9, "current Stamina restored")
+    eq(hero:canUndoRankUp(), false, "nothing left to undo")
+    eq(hero:undoRankUp(), nil, "a second undo does nothing")
+
+    -- Undo unwinds several gains in order, most recent first.
+    hero:rankUp(scripted(2)); hero:rankUp(scripted(5))
+    eq(hero.stamina_max, 16, "two gains applied")
+    eq(hero:undoRankUp(), 5, "most recent gain undone first")
+    eq(hero:undoRankUp(), 2, "then the earlier one")
+    eq(hero.stamina_max, 9, "back where it started")
+
+    -- A real Rank loss is not an undo: it consumes the remembered gain so a
+    -- later undo cannot hand the Stamina back a second time.
+    hero:rankUp(scripted(4))
+    eq(hero.stamina_max, 13, "gained 4")
+    hero:rankDown(scripted(1))
+    eq(hero.stamina_max, 12, "lost its own roll of 1, not the remembered 4")
+    eq(hero:canUndoRankUp(), false, "the remembered gain was consumed")
+
+    -- A character created in a later book has no history to undo.
+    local later = Character.create("Later", "Rogue", 5)
+    eq(later:canUndoRankUp(), false, "no phantom undo for a later-book start")
+    eq(later.rank, 5, "still 5th Rank")
+end
+
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)

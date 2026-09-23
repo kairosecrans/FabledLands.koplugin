@@ -342,6 +342,24 @@ function FabledLands:showMore()
                 text = ("Go up to %s Rank"):format(Rules.ordinal(character.rank + 1)),
                 callback = function() self:rankUp() end,
             },
+            {
+                text = character:canUndoRankUp()
+                    and _("Undo the last Rank gain")
+                    or ("Go down to %s Rank"):format(Rules.ordinal(character.rank - 1)),
+                enabled = character.rank > Rules.MIN_RANK,
+                callback = function()
+                    -- Undoing a mis-tap and suffering a Rank loss are different
+                    -- things: one puts back exactly what was taken, the other
+                    -- rolls a fresh die. Offer the undo while it is available,
+                    -- since that is the case people hit by accident.
+                    if character:canUndoRankUp() then
+                        self:undoRankUp()
+                    else
+                        self:rankDown()
+                    end
+                end,
+                hold_callback = function() self:rankDown() end,
+            },
             { text = _("Characters"), callback = function() self:showCharacters() end },
         },
         close_callback = back,
@@ -366,6 +384,55 @@ function FabledLands:rankUp()
                 close_text = _("Onward"),
                 close_callback = function() self:showSheet() end,
             }
+        end,
+        cancel_callback = function() self:showSheet() end,
+    }
+end
+
+--- Losing a Rank, as the books sometimes impose (Book 4): -1 Rank and a die's
+-- worth of Stamina, lost permanently.
+function FabledLands:rankDown()
+    local character = self.character
+    Prompts.confirm{
+        text = ("Go down to %s Rank?\n\nYou will roll one die for the Stamina you lose permanently. This is the rule the books impose, not an undo.")
+            :format(Rules.ordinal(character.rank - 1)),
+        ok_text = _("Lose a Rank"),
+        ok_callback = function()
+            local loss, err = character:rankDown()
+            if not loss then
+                Prompts.info(err)
+                self:showSheet()
+                return
+            end
+            self:save()
+            Prompts.panel{
+                title = ("You are now %s Rank, a %s.\n\nYou rolled %d, so your Stamina falls to %d/%d.\nYour Defence is now %d.")
+                    :format(Rules.ordinal(character.rank), character:rankTitle(),
+                        loss, character.stamina, character.stamina_max, character:defence()),
+                buttons = {},
+                close_text = _("Onward"),
+                close_callback = function() self:showSheet() end,
+            }
+        end,
+        cancel_callback = function() self:showSheet() end,
+    }
+end
+
+--- Puts back exactly what the last rank-up gave, for a mis-tap.
+function FabledLands:undoRankUp()
+    local character = self.character
+    Prompts.confirm{
+        text = ("Undo the last Rank gain, back to %s Rank?\n\nThis takes back exactly the Stamina it gave, rather than rolling again.")
+            :format(Rules.ordinal(character.rank - 1)),
+        ok_text = _("Undo"),
+        ok_callback = function()
+            local gain = character:undoRankUp()
+            self:save()
+            Prompts.info(gain
+                and ("Back to %s Rank; %d Stamina taken back (now %d/%d)."):format(
+                    Rules.ordinal(character.rank), gain, character.stamina, character.stamina_max)
+                or _("There was no Rank gain to undo."))
+            self:showSheet()
         end,
         cancel_callback = function() self:showSheet() end,
     }

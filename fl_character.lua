@@ -74,6 +74,7 @@ function Character.restore(data)
     data.codewords = data.codewords or {}
     data.titles = data.titles or {}
     data.blessings = data.blessings or {}
+    data.rank_gains = data.rank_gains or {}
     data.rank = data.rank or 1
     data.shards = data.shards or 0
     data.stamina_max = data.stamina_max or Rules.STARTING_STAMINA
@@ -139,12 +140,52 @@ end
 
 --- Advances a Rank: +1 Rank and 1d6 permanent Stamina, gained on both the
 -- current and the unwounded score.
+--
+-- The roll is remembered so it can be reversed exactly. Rolling a fresh die
+-- to undo a mis-tap would quietly change the character.
 -- @treturn int the Stamina gained
 function Character:rankUp(rng)
     local gain = Rules.rankUpStamina(rng)
     self.rank = self.rank + 1
     self.stamina_max = self.stamina_max + gain
     self.stamina = self.stamina + gain
+    self.rank_gains = self.rank_gains or {}
+    table.insert(self.rank_gains, gain)
+    return gain
+end
+
+--- Losing a Rank, as the books occasionally impose: -1 Rank and a die's worth
+-- of Stamina, lost permanently. Not an undo -- it rolls afresh.
+-- @treturn int|nil the Stamina lost, or nil if already at the lowest Rank
+-- @treturn string|nil reason for refusal
+function Character:rankDown(rng)
+    if self.rank <= Rules.MIN_RANK then
+        return nil, ("You cannot go below %s Rank."):format(Rules.ordinal(Rules.MIN_RANK))
+    end
+    local loss = Rules.rankUpStamina(rng)
+    self.rank = self.rank - 1
+    -- A character always keeps at least one point to stand up in.
+    self.stamina_max = math.max(1, self.stamina_max - loss)
+    self.stamina = math.min(self.stamina, self.stamina_max)
+    -- A genuine Rank loss is not an undo, so it consumes any remembered gain:
+    -- the Stamina that gain added is gone by another route.
+    if self.rank_gains then table.remove(self.rank_gains) end
+    return loss
+end
+
+--- True when there is a remembered rank-up that can be reversed exactly.
+function Character:canUndoRankUp()
+    return self.rank_gains ~= nil and #self.rank_gains > 0 and self.rank > Rules.MIN_RANK
+end
+
+--- Reverses the most recent rank-up exactly, for a mis-tap.
+-- @treturn int|nil the Stamina taken back, or nil if there is nothing to undo
+function Character:undoRankUp()
+    if not self:canUndoRankUp() then return nil end
+    local gain = table.remove(self.rank_gains)
+    self.rank = self.rank - 1
+    self.stamina_max = math.max(1, self.stamina_max - gain)
+    self.stamina = math.min(self.stamina, self.stamina_max)
     return gain
 end
 
