@@ -566,7 +566,9 @@ function FabledLands:showMore()
             {
                 text = character:canUndoRankUp()
                     and _("Undo the last Rank gain")
-                    or ("Go down to %s Rank"):format(Rules.ordinal(character.rank - 1)),
+                    or character.rank > Rules.MIN_RANK
+                        and ("Go down to %s Rank"):format(Rules.ordinal(character.rank - 1))
+                    or _("Go down a Rank"),
                 enabled = character.rank > Rules.MIN_RANK,
                 callback = function()
                     -- Undoing a mis-tap and suffering a Rank loss are different
