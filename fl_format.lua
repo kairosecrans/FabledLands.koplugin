@@ -52,6 +52,20 @@ local SHORT_ABILITY = {
     SANCTITY = "SAN", SCOUTING = "SCO", THIEVERY = "THI",
 }
 
+--- A possession as the books write it: "trident (COMBAT +1)".
+function Format.item(item)
+    if item.ability and (item.bonus or 0) > 0 then
+        return ("%s (%s +%d)"):format(item.name, item.ability, item.bonus)
+    elseif (item.defence or 0) > 0 then
+        return ("%s (Defence +%d)"):format(item.name, item.defence)
+    elseif item.heals == "all" then
+        return ("%s (restores all Stamina)"):format(item.name)
+    elseif item.heals then
+        return ("%s (restores %d Stamina)"):format(item.name, item.heals)
+    end
+    return item.name
+end
+
 --- The whole profession table, aligned, for choosing at creation.
 -- Buttons render on a single line in a proportional font, so the comparison
 -- goes in the panel's monospaced title and the buttons carry only the names.

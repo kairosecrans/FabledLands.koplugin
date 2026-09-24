@@ -16,14 +16,7 @@ local _ = require("gettext")
 
 local Inventory = {}
 
-local function describeItem(item)
-    if item.ability and (item.bonus or 0) > 0 then
-        return ("%s (%s +%d)"):format(item.name, item.ability, item.bonus)
-    elseif (item.defence or 0) > 0 then
-        return ("%s (Defence +%d)"):format(item.name, item.defence)
-    end
-    return item.name
-end
+local describeItem = Format.item
 
 -- Possessions --------------------------------------------------------------
 
@@ -72,6 +65,36 @@ local function askItemEffect(plugin, name, back)
                     Prompts.menu{
                         title = _("Which ability?"),
                         items = abilities,
+                        close_callback = back,
+                    }
+                end,
+            },
+            {
+                text = _("Restores Stamina when used"),
+                callback = function()
+                    Prompts.menu{
+                        title = ("%s\n\n%s"):format(name, _("How much Stamina does it restore?")),
+                        items = {
+                            {
+                                text = _("All of it"),
+                                callback = function() add({ name = name, heals = "all" }) end,
+                            },
+                            {
+                                text = _("A set amount"),
+                                callback = function()
+                                    Prompts.number{
+                                        title = name,
+                                        info = _("Stamina restored"),
+                                        value = 5, min = 1, max = 50,
+                                        ok_text = _("Add"),
+                                        cancel_callback = back,
+                                        callback = function(amount)
+                                            add({ name = name, heals = amount })
+                                        end,
+                                    }
+                                end,
+                            },
+                        },
                         close_callback = back,
                     }
                 end,
@@ -129,16 +152,29 @@ function Inventory.possessions(plugin)
         table.insert(items, {
             text = describeItem(item),
             callback = function()
-                Prompts.menu{
-                    title = describeItem(item),
-                    items = { {
-                        text = _("Drop it"),
+                local actions = {}
+                if item.heals then
+                    table.insert(actions, {
+                        text = _("Use it"),
                         callback = function()
-                            character:removePossession(index)
+                            local gained = character:useItem(index)
                             plugin:save()
+                            Prompts.info(("You regain %d Stamina, and %s is used up."):format(gained, item.name))
                             back()
                         end,
-                    } },
+                    })
+                end
+                table.insert(actions, {
+                    text = _("Drop it"),
+                    callback = function()
+                        character:removePossession(index)
+                        plugin:save()
+                        back()
+                    end,
+                })
+                Prompts.menu{
+                    title = describeItem(item),
+                    items = actions,
                     close_callback = back,
                 }
             end,

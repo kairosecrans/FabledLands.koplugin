@@ -130,6 +130,58 @@ local function nextEnemy(plugin)
     end, function() Combat.show(plugin) end)
 end
 
+--- Restoring Stamina mid-fight. Healing items in the pack come first, since
+-- they say how much they restore and get used up; anything else (a spell, a
+-- blessing) is a typed amount.
+local function askHealing(plugin)
+    local character = plugin.character
+    local fight = character.fight
+    local back = function() Combat.show(plugin) end
+
+    local function other()
+        Prompts.number{
+            title = _("Restore how much Stamina?"),
+            value = 1,
+            min = 1,
+            max = 50,
+            ok_text = _("Restore"),
+            cancel_callback = back,
+            callback = function(amount)
+                local gained = character:heal(amount)
+                logLine(fight, ("  You heal -- +%d Stamina"):format(gained))
+                plugin:save()
+                back()
+            end,
+        }
+    end
+
+    local healing = character:healingItems()
+    if #healing == 0 then
+        other()
+        return
+    end
+
+    local items = {}
+    for _i, entry in ipairs(healing) do
+        table.insert(items, {
+            text = Format.item(entry.item),
+            callback = function()
+                local gained, used = character:useItem(entry.index)
+                logLine(fight, ("  You use the %s -- +%d Stamina"):format(used.name, gained))
+                plugin:save()
+                back()
+            end,
+        })
+    end
+    table.insert(items, { text = _("Something else"), callback = other })
+
+    Prompts.menu{
+        title = _("What do you use?"),
+        items = items,
+        close_callback = back,
+    }
+end
+
 --- Your blow, then the enemy's reply if it survives.
 local function fightRound(plugin)
     local character = plugin.character
@@ -289,24 +341,8 @@ function Combat.show(plugin)
                 end,
             },
             {
-                text = _("Drink potion"),
-                callback = function()
-                    Prompts.number{
-                        title = _("Restore how much Stamina?"),
-                        info = _("A potion of healing restores 5."),
-                        value = 5,
-                        min = 1,
-                        max = 50,
-                        ok_text = _("Drink"),
-                        cancel_callback = function() Combat.show(plugin) end,
-                        callback = function(amount)
-                            local gained = character:heal(amount)
-                            logLine(fight, ("  You drink -- +%d Stamina"):format(gained))
-                            plugin:save()
-                            Combat.show(plugin)
-                        end,
-                    }
-                end,
+                text = _("Heal"),
+                callback = function() askHealing(plugin) end,
             },
         })
         table.insert(buttons, {

@@ -279,6 +279,28 @@ function Character:removePossession(index)
     return table.remove(self.possessions, index)
 end
 
+--- Uses up an item that restores Stamina, such as a healing potion. The item
+-- says how much: a number of points, or "all". The books vary too much for
+-- any one amount to be assumed.
+-- @treturn int|nil Stamina gained, or nil if the item does not heal
+-- @treturn table the item used up
+function Character:useItem(index)
+    local item = self.possessions[index]
+    if not (item and item.heals) then return nil end
+    table.remove(self.possessions, index)
+    local amount = item.heals == "all" and self.stamina_max or tonumber(item.heals) or 0
+    return self:heal(amount), item
+end
+
+--- The items that can be used to restore Stamina, with their pack positions.
+function Character:healingItems()
+    local found = {}
+    for index, item in ipairs(self.possessions) do
+        if item.heals then table.insert(found, { index = index, item = item }) end
+    end
+    return found
+end
+
 -- Codewords ----------------------------------------------------------------
 -- Codewords persist across books and are never erased when moving between
 -- them (p. 7).

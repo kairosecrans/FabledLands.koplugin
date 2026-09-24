@@ -707,5 +707,33 @@ do
     contains(Format.sheet(hero), "Swamp fever", "by name")
 end
 
+-- Items that restore Stamina ------------------------------------------------
+do
+    local hero = Character.create("Thirsty", "Rogue") -- Stamina 9
+    hero:takeDamage(7) -- 2/9
+    hero:addPossession({ name = "healing potion", heals = 5 })
+    hero:addPossession({ name = "elixir", heals = "all" })
+    local healing = hero:healingItems()
+    eq(#healing, 2, "both healing items found")
+    eq(healing[1].index, 4, "with their pack positions")
+
+    eq(hero:useItem(1), nil, "a sword heals nothing")
+    eq(#hero.possessions, 5, "and is not used up")
+
+    local gained, used = hero:useItem(4)
+    eq(gained, 5, "the potion restores its amount")
+    eq(used.name, "healing potion", "and reports what was used")
+    eq(hero.stamina, 7, "Stamina raised")
+    eq(#hero.possessions, 4, "the potion is used up")
+
+    eq((hero:useItem(4)), 2, "restoring all stops at the unwounded score")
+    eq(hero.stamina, 9, "fully healed")
+    eq(#hero:healingItems(), 0, "nothing left to drink")
+
+    eq(Format.item({ name = "healing potion", heals = 5 }), "healing potion (restores 5 Stamina)", "described with its amount")
+    eq(Format.item({ name = "elixir", heals = "all" }), "elixir (restores all Stamina)", "or as restoring all")
+    eq(Format.item({ name = "trident", ability = "COMBAT", bonus = 1 }), "trident (COMBAT +1)", "weapons as the books write them")
+end
+
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)
