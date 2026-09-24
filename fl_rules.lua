@@ -116,6 +116,31 @@ Rules.BOOK_TITLES = {
 Rules.SHIP_TYPES = { "barque", "brigantine", "galleon" }
 Rules.CREW_QUALITY = { "poor", "average", "good", "excellent" }
 
+-- When a book calls for a roll at sea, the ship decides how many dice and the
+-- crew adds to the result: one die for a barque, two for a brigantine, three
+-- for a galleon; +1 for a good crew, +2 for an excellent one.
+Rules.SHIP_DICE = { barque = 1, brigantine = 2, galleon = 3 }
+Rules.CREW_BONUS = { poor = 0, average = 0, good = 1, excellent = 2 }
+
+--- Rolls for the ship: dice by hull, bonus by crew.
+-- @string ship_type barque, brigantine or galleon
+-- @string crew poor, average, good or excellent
+-- @treturn table|nil a result record, or nil if the ship type is unknown
+function Rules.shipRoll(ship_type, crew, rng)
+    local count = Rules.SHIP_DICE[(ship_type or ""):lower()]
+    if not count then return nil end
+    local bonus = Rules.CREW_BONUS[(crew or ""):lower()] or 0
+    local dice, dice_total = Rules.rollDice(count, rng)
+    return {
+        dice = dice,
+        dice_total = dice_total,
+        bonus = bonus,
+        total = dice_total + bonus,
+        ship_type = ship_type,
+        crew = crew,
+    }
+end
+
 --- Rolls n six-sided dice.
 -- @int n how many dice
 -- @func rng optional; must behave like math.random(a, b). Injected by tests.

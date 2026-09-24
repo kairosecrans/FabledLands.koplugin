@@ -6,6 +6,7 @@ Unit tests for the Adventure Sheet model.
 
 package.path = "?.lua;" .. package.path
 local Character = require("fl_character")
+local Format = require("fl_format")
 local Rules = require("fl_rules")
 
 local failures, checks = 0, 0
@@ -20,6 +21,14 @@ end
 
 local function eq(got, want, label)
     check(got == want, label, ("expected %s, got %s"):format(tostring(want), tostring(got)))
+end
+
+local function contains(haystack, needle, label)
+    check(haystack:find(needle, 1, true) ~= nil, label, ("%q not found"):format(needle))
+end
+
+local function lacks(haystack, needle, label)
+    check(haystack:find(needle, 1, true) == nil, label, ("%q unexpectedly present"):format(needle))
 end
 
 local function scripted(...)
@@ -484,6 +493,81 @@ do
     eq(ok, false, "an unknown profession is refused")
     check(err ~= nil, "refusal explains itself")
     eq(hero.profession, "Warrior", "profession unchanged by a refusal")
+end
+
+-- Your god, and dying ------------------------------------------------------
+do
+    local hero = Character.create("Faithful", "Priest")
+    eq(hero.god, nil, "no god to begin with")
+    eq(hero:arrangementCount(), 0, "and nothing arranged")
+
+    eq(hero:setGod("  Nagil  "), "Nagil", "god recorded and trimmed")
+    eq(hero:addResurrection("Temple of Nagil, Marlock City", 478), true, "arrangement made")
+    eq(hero:addResurrection("Temple of Sig", "33"), true, "section accepts a string")
+    eq(hero:arrangementCount(), 2, "two outstanding")
+    eq(hero.resurrection[2].section, 33, "section stored as a number")
+    eq(hero:addResurrection("   ", 1), false, "an arrangement needs a place")
+
+    -- Renouncing costs the arrangements, which were made with that temple.
+    local lost = hero:renounceGod()
+    eq(lost, 2, "renouncing reports what it cost")
+    eq(hero.god, nil, "god cleared")
+    eq(hero:arrangementCount(), 0, "arrangements gone with it")
+
+    -- Clearing a god by setting an empty name does the same as unsetting.
+    hero:setGod("Tyrnai")
+    eq(hero:setGod(""), nil, "an empty name clears the god")
+
+    -- The sheet shows the arrangement exactly when it is needed.
+    hero:setGod("Nagil")
+    hero:addResurrection("Temple of Nagil", 478)
+    local alive = Format.sheet(hero)
+    contains(alive, "Nagil", "god shown on the sheet")
+    lacks(alive, "turn to 478", "but not the arrangement while alive")
+
+    hero:takeDamage(99)
+    local dead = Format.sheet(hero)
+    contains(dead, "DEAD", "death called out")
+    contains(dead, "turn to 478", "and the arrangement surfaces with it")
+
+    local unprepared = Character.create("Rash", "Warrior")
+    unprepared:takeDamage(99)
+    contains(Format.sheet(unprepared), "No resurrection arranged",
+        "and says so when nothing was arranged")
+end
+
+-- Rolling for the ship -----------------------------------------------------
+do
+    -- One die for a barque, two for a brigantine, three for a galleon;
+    -- +1 for a good crew, +2 for an excellent one.
+    local barque = Rules.shipRoll("barque", "average", scripted(4))
+    eq(#barque.dice, 1, "a barque rolls one die")
+    eq(barque.total, 4, "no bonus for an average crew")
+
+    local brig = Rules.shipRoll("brigantine", "good", scripted(3, 5))
+    eq(#brig.dice, 2, "a brigantine rolls two")
+    eq(brig.total, 9, "3 + 5 + 1 for a good crew")
+
+    local galleon = Rules.shipRoll("galleon", "excellent", scripted(1, 2, 3))
+    eq(#galleon.dice, 3, "a galleon rolls three")
+    eq(galleon.total, 8, "1 + 2 + 3 + 2 for an excellent crew")
+
+    eq(Rules.shipRoll("Galleon", "POOR", scripted(6, 6, 6)).total, 18, "case-insensitive")
+    eq(Rules.shipRoll("raft", "good"), nil, "an unknown hull cannot be rolled")
+    eq(Rules.shipRoll(nil, nil), nil, "nor can no hull at all")
+    eq(Rules.shipRoll("barque", nil, scripted(2)).total, 2, "no crew means no bonus")
+end
+
+-- Cargo against capacity ---------------------------------------------------
+do
+    local hero = Character.create("Trader", "Rogue")
+    hero.ship = { name = "Sea Dog", type = "brigantine", crew = "good",
+                  capacity = 6, cargo = { "timber", "wine" } }
+    contains(Format.ship(hero.ship), "cargo 2/6", "the hold shows what is used")
+    contains(Format.sheet(hero), "cargo 2/6", "and it reaches the sheet")
+
+    hero.ship.capacity = nil
+    lacks(Format.ship(hero.ship), "cargo", "no capacity set means no cargo line")
 end
 
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))

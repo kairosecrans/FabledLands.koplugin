@@ -76,6 +76,7 @@ function Character.restore(data)
     data.blessings = data.blessings or {}
     data.rank_gains = data.rank_gains or {}
     data.trail = data.trail or {}
+    data.resurrection = data.resurrection or {}
     data.rank = data.rank or 1
     data.shards = data.shards or 0
     data.stamina_max = data.stamina_max or Rules.STARTING_STAMINA
@@ -341,6 +342,45 @@ function Character:clearTrail(doc)
     for i = #self.trail, 1, -1 do
         if self.trail[i].doc == doc then table.remove(self.trail, i) end
     end
+end
+
+-- Your god, and dying -------------------------------------------------------
+
+--- Sets the god in the God box. One at a time; the books have you renounce
+-- one before taking up another.
+function Character:setGod(name)
+    name = tostring(name):match("^%s*(.-)%s*$")
+    self.god = name ~= "" and name or nil
+    return self.god
+end
+
+--- Renouncing a god costs any outstanding resurrection arrangements, since
+-- those were made with that god's temple. Returns how many are at stake so
+-- the caller can say so before doing it.
+function Character:arrangementCount()
+    return #(self.resurrection or {})
+end
+
+function Character:renounceGod()
+    local lost = self:arrangementCount()
+    self.god = nil
+    self.resurrection = {}
+    return lost
+end
+
+--- Records a resurrection deal: where it was made, and the section to turn to
+-- if you die. The section is what you actually need at the time, and it is
+-- the thing hardest to remember.
+function Character:addResurrection(where, section)
+    where = tostring(where):match("^%s*(.-)%s*$")
+    if where == "" then return false end
+    self.resurrection = self.resurrection or {}
+    table.insert(self.resurrection, { where = where, section = tonumber(section) })
+    return true
+end
+
+function Character:removeResurrection(index)
+    return table.remove(self.resurrection or {}, index)
 end
 
 -- Blessings ----------------------------------------------------------------

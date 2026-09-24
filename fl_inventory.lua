@@ -9,6 +9,7 @@ like a stack of sheets rather than a maze.
 @module koplugin.FabledLands.inventory
 --]]--
 
+local Format = require("fl_format")
 local Prompts = require("fl_prompts")
 local Rules = require("fl_rules")
 local _ = require("gettext")
@@ -350,45 +351,296 @@ function Inventory.blessings(plugin)
     }
 end
 
+
+-- Your god, and dying -------------------------------------------------------
+
+function Inventory.faith(plugin)
+    local character = plugin.character
+    local back = function() Inventory.faith(plugin) end
+    local items = {}
+
+    table.insert(items, {
+        text = character.god and ("God: %s"):format(character.god) or _("Name your god"),
+        callback = function()
+            Prompts.text{
+                title = _("Which god do you worship?"),
+                value = character.god or "",
+                hint = _("Nagil"),
+                ok_text = _("Set"),
+                callback = function(name)
+                    character:setGod(name)
+                    plugin:save()
+                    back()
+                end,
+            }
+        end,
+    })
+
+    if character.god then
+        table.insert(items, {
+            text = _("Renounce this god"),
+            callback = function()
+                local at_stake = character:arrangementCount()
+                Prompts.confirm{
+                    text = at_stake > 0
+                        and ("Renounce %s?\n\nThis also gives up %d resurrection arrangement%s, which were made with that temple."):format(
+                            character.god, at_stake, at_stake == 1 and "" or "s")
+                        or ("Renounce %s?"):format(character.god),
+                    ok_text = _("Renounce"),
+                    ok_callback = function()
+                        character:renounceGod()
+                        plugin:save()
+                        back()
+                    end,
+                    cancel_callback = back,
+                }
+            end,
+        })
+    end
+
+    for index, deal in ipairs(character.resurrection or {}) do
+        table.insert(items, {
+            text = deal.section
+                and ("%s -- turn to %d"):format(deal.where, deal.section)
+                or deal.where,
+            callback = function()
+                Prompts.confirm{
+                    text = ("Give up the arrangement at %s?"):format(deal.where),
+                    ok_text = _("Give up"),
+                    ok_callback = function()
+                        character:removeResurrection(index)
+                        plugin:save()
+                        back()
+                    end,
+                    cancel_callback = back,
+                }
+            end,
+        })
+    end
+
+    table.insert(items, {
+        text = _("Arrange a resurrection"),
+        callback = function()
+            Prompts.fields{
+                title = _("Resurrection arrangement"),
+                fields = {
+                    { text = "", hint = _("Where, e.g. Temple of Nagil") },
+                    { input_type = "number", text = "", hint = _("Turn to which section on death") },
+                },
+                ok_text = _("Arrange"),
+                callback = function(values)
+                    if not character:addResurrection(values[1], values[2]) then
+                        Prompts.info(_("An arrangement needs somewhere it was made."))
+                    else
+                        plugin:save()
+                    end
+                    back()
+                end,
+            }
+        end,
+    })
+
+    Prompts.menu{
+        title = character:isDead()
+            and ("%s\n\n%s"):format(_("You are dead."), Format.resurrection(character))
+            or _("God and resurrection"),
+        items = items,
+        close_callback = function() plugin:showSheet() end,
+    }
+end
+
 -- Ship's Manifest ----------------------------------------------------------
 
 function Inventory.ship(plugin)
     local character = plugin.character
-    local ship = character.ship or {}
+    local ship = character.ship
+    local back = function() Inventory.ship(plugin) end
 
-    Prompts.fields{
-        title = _("Ship's Manifest"),
-        fields = {
-            { description = _("Ship's name"), text = ship.name or "", hint = _("Sea Dog") },
-            {
-                description = _("Type: barque, brigantine or galleon"),
-                text = ship.type or "",
-                hint = table.concat(Rules.SHIP_TYPES, ", "),
-            },
-            {
-                description = _("Crew quality"),
-                text = ship.crew or "",
-                hint = table.concat(Rules.CREW_QUALITY, ", "),
-            },
-            { description = _("Cargo capacity"), text = ship.capacity or "", hint = "6" },
-            { description = _("Current cargo"), text = ship.cargo or "", hint = _("timber") },
-            { description = _("Where docked"), text = ship.docked or "", hint = _("Yellowport") },
-        },
-        ok_text = _("Save"),
-        callback = function(values)
-            local name, kind = values[1], values[2]
-            if (name .. kind):match("^%s*$") then
-                -- Both blank means "I no longer have a ship".
-                character.ship = nil
-            else
-                character.ship = {
-                    name = name, type = kind, crew = values[3],
-                    capacity = values[4], cargo = values[5], docked = values[6],
+    if not ship then
+        Prompts.menu{
+            title = _("Ship's Manifest\n\nYou have no ship."),
+            items = { {
+                text = _("Record a ship"),
+                callback = function()
+                    character.ship = { cargo = {} }
+                    plugin:save()
+                    back()
+                end,
+            } },
+            close_callback = function() plugin:showSheet() end,
+        }
+        return
+    end
+    ship.cargo = ship.cargo or {}
+
+    local function pick(label, options, current, apply)
+        local items = {}
+        for _i, option in ipairs(options) do
+            table.insert(items, {
+                text = option == current and ("> " .. option) or option,
+                callback = function() apply(option); plugin:save(); back() end,
+            })
+        end
+        Prompts.menu{ title = label, items = items, close_callback = back }
+    end
+
+    local capacity = tonumber(ship.capacity)
+    local items = {
+        {
+            text = ("Name: %s"):format(ship.name ~= "" and ship.name or "-"),
+            callback = function()
+                Prompts.text{
+                    title = _("Ship's name"), value = ship.name or "", hint = _("Sea Dog"),
+                    ok_text = _("Set"),
+                    callback = function(v) ship.name = v; plugin:save(); back() end,
                 }
+            end,
+        },
+        {
+            text = ("Type: %s"):format(ship.type or "-"),
+            callback = function()
+                pick(_("Ship type"), Rules.SHIP_TYPES, ship.type,
+                    function(v) ship.type = v end)
+            end,
+        },
+        {
+            text = ("Crew: %s"):format(ship.crew or "-"),
+            callback = function()
+                pick(_("Crew quality"), Rules.CREW_QUALITY, ship.crew,
+                    function(v) ship.crew = v end)
+            end,
+        },
+        {
+            text = ("Cargo: %d/%s"):format(#ship.cargo, capacity or "?"),
+            callback = function() Inventory.cargo(plugin) end,
+        },
+        {
+            text = ("Docked at: %s"):format(ship.docked ~= "" and ship.docked or "-"),
+            callback = function()
+                Prompts.text{
+                    title = _("Where docked"), value = ship.docked or "", hint = _("Yellowport"),
+                    ok_text = _("Set"),
+                    callback = function(v) ship.docked = v; plugin:save(); back() end,
+                }
+            end,
+        },
+        {
+            text = _("Roll for the ship"),
+            callback = function() Inventory.shipRoll(plugin) end,
+        },
+        {
+            text = _("Lose the ship"),
+            callback = function()
+                Prompts.confirm{
+                    text = _("Give up this ship and its cargo?"),
+                    ok_text = _("Give up"),
+                    ok_callback = function()
+                        character.ship = nil
+                        plugin:save()
+                        plugin:showSheet()
+                    end,
+                    cancel_callback = back,
+                }
+            end,
+        },
+    }
+
+    Prompts.menu{
+        title = _("Ship's Manifest"),
+        items = items,
+        close_callback = function() plugin:showSheet() end,
+    }
+end
+
+--- Cargo as units against the hold's capacity, rather than a line of text:
+--- the question in play is always whether there is room for more.
+function Inventory.cargo(plugin)
+    local ship = plugin.character.ship
+    local back = function() Inventory.cargo(plugin) end
+    ship.cargo = ship.cargo or {}
+    local capacity = tonumber(ship.capacity)
+
+    local items = {}
+    for index, unit in ipairs(ship.cargo) do
+        table.insert(items, {
+            text = unit,
+            callback = function()
+                Prompts.confirm{
+                    text = ("Unload %s?"):format(unit),
+                    ok_text = _("Unload"),
+                    ok_callback = function()
+                        table.remove(ship.cargo, index)
+                        plugin:save()
+                        back()
+                    end,
+                    cancel_callback = back,
+                }
+            end,
+        })
+    end
+
+    table.insert(items, {
+        text = _("Take on cargo"),
+        callback = function()
+            if capacity and #ship.cargo >= capacity then
+                Prompts.info(("The hold is full at %d units."):format(capacity))
+                back()
+                return
             end
-            plugin:save()
-            plugin:showSheet()
+            Prompts.text{
+                title = _("What are you loading?"),
+                hint = _("timber"),
+                ok_text = _("Load"),
+                callback = function(name)
+                    name = name:match("^%s*(.-)%s*$")
+                    if name ~= "" then
+                        table.insert(ship.cargo, name)
+                        plugin:save()
+                    end
+                    back()
+                end,
+            }
         end,
+    })
+
+    table.insert(items, {
+        text = ("Hold capacity: %s"):format(capacity or "not set"),
+        callback = function()
+            Prompts.number{
+                title = _("Cargo capacity"),
+                info = _("How many units the hold takes."),
+                value = capacity or 6, min = 0, max = 50,
+                ok_text = _("Set"),
+                callback = function(v) ship.capacity = v; plugin:save(); back() end,
+            }
+        end,
+    })
+
+    Prompts.menu{
+        title = ("%s  %d/%s"):format(_("Cargo"), #ship.cargo, capacity or "?"),
+        items = items,
+        close_callback = function() Inventory.ship(plugin) end,
+    }
+end
+
+--- The books roll for the ship by hull and crew: one die for a barque, two
+--- for a brigantine, three for a galleon, plus the crew's bonus.
+function Inventory.shipRoll(plugin)
+    local ship = plugin.character.ship
+    local result = Rules.shipRoll(ship.type, ship.crew)
+    if not result then
+        Prompts.info(_("Set the ship's type first: the hull decides how many dice."))
+        Inventory.ship(plugin)
+        return
+    end
+    Prompts.panel{
+        title = Format.shipRoll(result),
+        buttons = { { {
+            text = _("Roll again"),
+            callback = function() Inventory.shipRoll(plugin) end,
+        } } },
+        close_text = _("Done"),
+        close_callback = function() Inventory.ship(plugin) end,
     }
 end
 

@@ -472,6 +472,7 @@ function FabledLands:showMore()
             { text = _("Money"), callback = function() Inventory.money(self) end },
             { text = _("Titles and honours"), callback = function() Inventory.titles(self) end },
             { text = _("Blessings"), callback = function() Inventory.blessings(self) end },
+            { text = _("God and resurrection"), callback = function() Inventory.faith(self) end },
             { text = _("Ship's Manifest"), callback = function() Inventory.ship(self) end },
             { text = _("Notes"), callback = function() Inventory.notes(self) end },
             {

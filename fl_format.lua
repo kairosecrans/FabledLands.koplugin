@@ -115,12 +115,18 @@ function Format.sheet(character)
         end
         table.insert(lines, pad("Blessings", 10) .. table.concat(names, ", "))
     end
+    if character.god then
+        table.insert(lines, pad("God", 10) .. character.god)
+    end
     if character.ship then
         table.insert(lines, pad("Ship", 10) .. Format.ship(character.ship))
     end
     if character:isDead() then
         table.insert(lines, "")
         table.insert(lines, "*** DEAD -- Stamina has reached zero ***")
+        -- The one moment the arrangement is needed, so it goes here rather
+        -- than two screens away.
+        table.insert(lines, Format.resurrection(character))
     end
     if character.notes and character.notes ~= "" then
         table.insert(lines, "")
@@ -133,6 +139,10 @@ function Format.ship(ship)
     local parts = { ship.name and ship.name ~= "" and ship.name or ship.type or "ship" }
     if ship.type then table.insert(parts, ship.type) end
     if ship.crew then table.insert(parts, ship.crew .. " crew") end
+    local capacity = tonumber(ship.capacity)
+    if capacity then
+        table.insert(parts, ("cargo %d/%d"):format(#(ship.cargo or {}), capacity))
+    end
     if ship.docked and ship.docked ~= "" then table.insert(parts, "at " .. ship.docked) end
     return table.concat(parts, ", ")
 end
@@ -169,6 +179,35 @@ function Format.blow(who, result)
     return ("  %s(%d+%d)+%d=%d vs %d %s"):format(
         pad(tostring(who):sub(1, 7), 8), result.dice[1], result.dice[2], bonus,
         result.total, result.defence, outcome)
+end
+
+--- What happens now you are dead, if anything was arranged.
+function Format.resurrection(character)
+    local deals = character.resurrection or {}
+    if #deals == 0 then
+        return "No resurrection arranged."
+    end
+    local lines = { "Resurrection arranged:" }
+    for _i, deal in ipairs(deals) do
+        table.insert(lines, deal.section
+            and ("  %s -- turn to %d"):format(deal.where, deal.section)
+            or ("  %s"):format(deal.where))
+    end
+    return table.concat(lines, "\n")
+end
+
+--- The result of a roll made for the ship.
+function Format.shipRoll(result)
+    local lines = {
+        ("Ship roll: %s, %s crew"):format(result.ship_type, result.crew or "average"),
+        "",
+        ("  %s%s = %d"):format(pad("Dice", 12), table.concat(result.dice, " + "), result.dice_total),
+    }
+    if result.bonus > 0 then
+        table.insert(lines, ("  %s%s"):format(pad("Crew", 12), signed(result.bonus)))
+    end
+    table.insert(lines, ("  %s%d"):format(pad("Total", 12), result.total))
+    return table.concat(lines, "\n")
 end
 
 --- Describes the situational modifiers in force, for the modifiers screen.
