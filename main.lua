@@ -718,6 +718,16 @@ function FabledLands:showRoll()
         })
     end
 
+    -- Sometimes the book wants dice and no ability at all.
+    table.insert(items, {
+        text = _("Roll one die"),
+        callback = function() self:rollPlain(1) end,
+    })
+    table.insert(items, {
+        text = _("Roll two dice"),
+        callback = function() self:rollPlain(2) end,
+    })
+
     table.insert(items, {
         text = _("Minimize"),
         enabled = self:canMinimize(),
@@ -727,7 +737,7 @@ function FabledLands:showRoll()
     })
 
     Prompts.menu{
-        title = _("Which ability is the book asking for?"),
+        title = _("What is the book asking you to roll?"),
         items = items,
         close_callback = function() self:showSheet() end,
     }
@@ -750,7 +760,12 @@ function FabledLands:askDifficulty(ability)
 end
 
 function FabledLands:rollAbility(ability, difficulty)
-    local result = self.character:check(ability, difficulty)
+    self:showCheck(ability, difficulty, self.character:check(ability, difficulty))
+end
+
+--- Shows a check already rolled. Kept apart from the roll so that restoring
+-- a minimized result shows the same dice rather than rolling new ones.
+function FabledLands:showCheck(ability, difficulty, result)
     Prompts.panel{
         title = Format.check(ability, result),
         buttons = { {
@@ -767,7 +782,38 @@ function FabledLands:rollAbility(ability, difficulty)
                 text = _("Minimize"),
                 enabled = self:canMinimize(),
                 callback = function()
-                    self:minimize(function() self:rollAbility(ability, difficulty) end, "sheet")
+                    self:minimize(function() self:showCheck(ability, difficulty, result) end, "sheet")
+                end,
+            },
+        } },
+        close_text = _("Adventure Sheet"),
+        close_callback = function() self:showSheet() end,
+    }
+end
+
+function FabledLands:rollPlain(count)
+    local dice, total = Rules.rollDice(count)
+    self:showPlainRoll(count, dice, total)
+end
+
+function FabledLands:showPlainRoll(count, dice, total)
+    Prompts.panel{
+        title = Format.plainRoll(dice, total),
+        buttons = { {
+            {
+                text = _("Roll again"),
+                callback = function() self:rollPlain(count) end,
+            },
+            {
+                text = _("Another roll"),
+                callback = function() self:showRoll() end,
+            },
+        }, {
+            {
+                text = _("Minimize"),
+                enabled = self:canMinimize(),
+                callback = function()
+                    self:minimize(function() self:showPlainRoll(count, dice, total) end, "sheet")
                 end,
             },
         } },

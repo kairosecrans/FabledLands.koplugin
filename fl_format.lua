@@ -210,6 +210,17 @@ function Format.shipRoll(result)
     return table.concat(lines, "\n")
 end
 
+--- A plain roll, for when the book asks for dice without an ability.
+local DICE_WORDS = { "One die", "Two dice" }
+
+function Format.plainRoll(dice, total)
+    local label = DICE_WORDS[#dice] or ("%d dice"):format(#dice)
+    if #dice == 1 then
+        return ("%s\n\n  %d"):format(label, total)
+    end
+    return ("%s\n\n  %s = %d"):format(label, table.concat(dice, " + "), total)
+end
+
 --- Describes the situational modifiers in force, for the modifiers screen.
 function Format.modifiers(fight)
     local attack = fight.attack_mod or 0

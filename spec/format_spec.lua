@@ -288,5 +288,14 @@ do
     check(#long <= 32, "badge stays narrow", ("%d chars"):format(#long))
 end
 
+-- Plain rolls -------------------------------------------------------------
+do
+    eq(Format.plainRoll({ 4, 3 }, 7), "Two dice\n\n  4 + 3 = 7", "two dice show both and the total")
+    eq(Format.plainRoll({ 5 }, 5), "One die\n\n  5", "one die shows just the number")
+
+    local dice, total = Rules.rollDice(2, scripted(6, 2))
+    contains(Format.plainRoll(dice, total), "6 + 2 = 8", "renders a real roll")
+end
+
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)
