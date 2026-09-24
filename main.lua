@@ -496,6 +496,7 @@ function FabledLands:showMore()
                 end,
                 hold_callback = function() self:rankDown() end,
             },
+            { text = _("Name and profession"), callback = function() self:editIdentity() end },
             { text = _("Characters"), callback = function() self:showCharacters() end },
         },
         close_callback = back,
@@ -522,6 +523,63 @@ function FabledLands:rankUp()
             }
         end,
         cancel_callback = function() self:showSheet() end,
+    }
+end
+
+--- Correcting a name or profession after the fact.
+--
+-- Changing profession leaves the ability scores alone: they started from the
+-- profession's table but have been raised and lowered in play since, so
+-- rewriting them would discard the character.
+function FabledLands:editIdentity()
+    local character = self.character
+    local back = function() self:editIdentity() end
+
+    Prompts.menu{
+        title = ("%s\n%s"):format(character.name ~= "" and character.name or _("(unnamed)"),
+            character.profession or "?"),
+        items = {
+            {
+                text = _("Rename"),
+                callback = function()
+                    Prompts.text{
+                        title = _("What is your character called?"),
+                        value = character.name,
+                        ok_text = _("Rename"),
+                        callback = function(name)
+                            if character:rename(name) then
+                                self:save()
+                            else
+                                Prompts.info(_("A character needs a name."))
+                            end
+                            back()
+                        end,
+                    }
+                end,
+            },
+            {
+                text = _("Change profession"),
+                callback = function()
+                    local items = {}
+                    for _i, profession in ipairs(Rules.PROFESSION_NAMES) do
+                        table.insert(items, {
+                            text = profession,
+                            callback = function()
+                                local ok, err = character:setProfession(profession)
+                                if not ok then Prompts.info(err) else self:save() end
+                                back()
+                            end,
+                        })
+                    end
+                    Prompts.menu{
+                        title = _("Change profession\n\nYour ability scores are left as they are."),
+                        items = items,
+                        close_callback = back,
+                    }
+                end,
+            },
+        },
+        close_callback = function() self:showSheet() end,
     }
 end
 

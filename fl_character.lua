@@ -195,6 +195,32 @@ function Character:undoRankUp()
     return gain
 end
 
+-- Identity -----------------------------------------------------------------
+
+--- Renames a character. Trims, and refuses to leave them nameless.
+-- @treturn bool success
+function Character:rename(name)
+    name = tostring(name):match("^%s*(.-)%s*$")
+    if name == "" then return false end
+    self.name = name
+    return true
+end
+
+--- Changes profession without touching the ability scores.
+--
+-- The scores came from the profession's starting table, but by now they have
+-- been raised and lowered in play, so rewriting them would throw away the
+-- character. Profession is a label after this point; only the sheet shows it.
+-- @treturn bool success
+-- @treturn string|nil reason for refusal
+function Character:setProfession(profession)
+    if not Rules.professionsFor(self.started_in)[profession] then
+        return false, "unknown profession: " .. tostring(profession)
+    end
+    self.profession = profession
+    return true
+end
+
 -- Abilities ----------------------------------------------------------------
 
 --- Adjusts an ability, clamped to 1..12 (p. 7).

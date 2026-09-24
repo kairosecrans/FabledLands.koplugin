@@ -457,5 +457,34 @@ do
     eq(revived:sectionTrail("book3.pdf")[1].section, 7, "with its section")
 end
 
+-- Correcting name and profession ------------------------------------------
+do
+    local hero = Character.create("Marana", "Rogue", 3)
+    local before = {}
+    for _, a in ipairs(Rules.ABILITIES) do before[a] = hero.abilities[a] end
+
+    eq(hero:rename("  Marana Fireheart  "), true, "renamed")
+    eq(hero.name, "Marana Fireheart", "trimmed")
+    eq(hero:rename("   "), false, "a blank name is refused")
+    eq(hero.name, "Marana Fireheart", "and the old name survives the refusal")
+
+    -- Profession is a label once play has begun: the scores have moved on.
+    hero:adjustAbility("THIEVERY", 2)
+    local thievery = hero.abilities.THIEVERY
+    eq(hero:setProfession("Warrior"), true, "profession changed")
+    eq(hero.profession, "Warrior", "recorded")
+    eq(hero.abilities.THIEVERY, thievery, "abilities are not rewritten")
+    for _, a in ipairs(Rules.ABILITIES) do
+        if a ~= "THIEVERY" then
+            eq(hero.abilities[a], before[a], a .. " untouched by the change")
+        end
+    end
+
+    local ok, err = hero:setProfession("Necromancer")
+    eq(ok, false, "an unknown profession is refused")
+    check(err ~= nil, "refusal explains itself")
+    eq(hero.profession, "Warrior", "profession unchanged by a refusal")
+end
+
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)
