@@ -518,6 +518,24 @@ do
     hero:setGod("Tyrnai")
     eq(hero:setGod(""), nil, "an empty name clears the god")
 
+    -- Taking up a different god renounces the old one, arrangements and all.
+    -- Naming a first god, or correcting the case of the current one, does not.
+    hero:addResurrection("Temple of Sig", 33)
+    eq(hero:godChangeCost("Sig"), 0, "naming a first god costs nothing")
+    local _god, lost = hero:setGod("Sig")
+    eq(lost, 0, "and nothing was lost")
+    eq(hero:arrangementCount(), 1, "the arrangement stands")
+    eq(hero:godChangeCost("  SIG "), 0, "retyping the same god in other case costs nothing")
+    hero:setGod("  SIG ")
+    eq(hero:arrangementCount(), 1, "arrangement kept through a case correction")
+    eq(hero:godChangeCost("Tyrnai"), 1, "switching gods puts the arrangement at stake")
+    eq(hero:godChangeCost(""), 1, "so does clearing the box")
+    local god, cost = hero:setGod("Tyrnai")
+    eq(god, "Tyrnai", "new god recorded")
+    eq(cost, 1, "switching reports what it cost")
+    eq(hero:arrangementCount(), 0, "arrangements gone with the old god")
+    hero:setGod("")
+
     -- The sheet shows the arrangement exactly when it is needed.
     hero:setGod("Nagil")
     hero:addResurrection("Temple of Nagil", 478)
@@ -568,6 +586,85 @@ do
 
     hero.ship.capacity = nil
     lacks(Format.ship(hero.ship), "cargo", "no capacity set means no cargo line")
+end
+
+-- Ships saved by 0.3.0 -----------------------------------------------------
+-- Every Manifest field used to be typed text. Cargo was a description, and
+-- reading it as a list either threw or counted its letters as units.
+do
+    local legacy = Character.restore({ name = "Old", profession = "Rogue",
+        ship = { name = "Sea Dog", type = " Brigantine ", crew = "GOOD",
+                 capacity = "6", cargo = "timber", docked = "Yellowport" } })
+    local ship = legacy.ship
+    eq(type(ship.cargo), "table", "text cargo becomes a list")
+    eq(#ship.cargo, 1, "holding the one description that was typed")
+    eq(ship.cargo[1], "timber", "unchanged")
+    eq(ship.capacity, 6, "capacity becomes a number")
+    eq(ship.type, "brigantine", "type lower-cased and trimmed for the picker")
+    eq(ship.crew, "good", "crew lower-cased for the picker")
+    eq(ship.name, "Sea Dog", "name untouched")
+    contains(Format.ship(ship), "cargo 1/6", "the sheet counts units, not letters")
+
+    -- The roll works on migrated data.
+    eq(#Rules.shipRoll(ship.type, ship.crew, scripted(1, 1)).dice, 2, "a migrated brigantine rolls two dice")
+
+    -- Blank fields from the old form become absent rather than empty.
+    local blank = Character.restore({ ship = { name = "Raft", type = "", crew = "  ",
+                                               capacity = "", cargo = "   " } })
+    eq(#blank.ship.cargo, 0, "blank cargo text becomes an empty hold")
+    eq(blank.ship.capacity, nil, "blank capacity becomes unset")
+    eq(blank.ship.type, nil, "blank type becomes unset")
+    eq(blank.ship.crew, nil, "blank crew becomes unset")
+
+    -- Current data passes through untouched.
+    local current = Character.restore({ ship = { type = "galleon", crew = "excellent",
+                                                 capacity = 10, cargo = { "wine", "silk" } } })
+    eq(#current.ship.cargo, 2, "a list of units is left as it is")
+    eq(current.ship.capacity, 10, "numeric capacity kept")
+
+    -- Restoring twice changes nothing further.
+    local twice = Character.restore(Character.restore({ ship = { cargo = "furs", capacity = "4" } }))
+    eq(#twice.ship.cargo, 1, "restoring is idempotent")
+    eq(twice.ship.cargo[1], "furs", "and does not nest the list")
+end
+
+-- Trails recorded under a filename move to the book's checksum -------------
+do
+    local hero = Character.create("Mover", "Rogue")
+    hero:recordSection(10, 5, "book1.pdf")
+    hero:recordSection(20, 9, "book1.pdf")
+    hero:recordSection(7, 3, "book2.pdf")
+
+    eq(hero:rekeyTrail("book1.pdf", "abc123"), 2, "both entries moved")
+    eq(#hero:sectionTrail("book1.pdf"), 0, "nothing left under the filename")
+    local moved = hero:sectionTrail("abc123")
+    eq(#moved, 2, "found under the checksum")
+    eq(moved[1].section, 20, "order kept, most recent first")
+    eq(#hero:sectionTrail("book2.pdf"), 1, "another book's trail untouched")
+    eq(hero:rekeyTrail("book1.pdf", "abc123"), 0, "a second pass moves nothing")
+    eq(hero:rekeyTrail("abc123", "abc123"), 0, "same key is a no-op")
+
+    -- A book with entries under both keys keeps the latest visit per section.
+    hero:recordSection(10, 6, "abc123")
+    hero:recordSection(10, 5, "book1.pdf")
+    hero:recordSection(30, 12, "book1.pdf")
+    hero:rekeyTrail("book1.pdf", "abc123")
+    local merged = hero:sectionTrail("abc123")
+    eq(#merged, 3, "duplicate section merged")
+    eq(merged[1].section, 30, "latest first")
+    eq(merged[2].section, 10, "section 10 kept once")
+    eq(merged[2].page, 5, "at its most recent page")
+
+    -- And stays within the length limit.
+    local long = Character.create("Long", "Rogue")
+    for n = 1, Character.TRAIL_LENGTH do long:recordSection(n, n, "old.pdf") end
+    for n = 101, 105 do long:recordSection(n, n, "md5") end
+    long:rekeyTrail("old.pdf", "md5")
+    eq(#long:sectionTrail("md5"), Character.TRAIL_LENGTH, "merged trail trimmed")
+    local trail = long:sectionTrail("md5")
+    eq(trail[1].section, 105, "the newest visit survives the trim")
+    eq(trail[#trail].section, 6, "the five oldest were dropped")
+    eq(Character.create("Empty", "Rogue"):rekeyTrail("a", "b"), 0, "no trail at all is fine")
 end
 
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))

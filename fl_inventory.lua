@@ -61,6 +61,7 @@ local function askItemEffect(plugin, name, back)
                                     info = _("How big is the bonus?"),
                                     value = 1, min = 1, max = 6,
                                     ok_text = _("Add"),
+                                    cancel_callback = back,
                                     callback = function(bonus)
                                         add({ name = name, ability = ability, bonus = bonus })
                                     end,
@@ -83,6 +84,7 @@ local function askItemEffect(plugin, name, back)
                         info = _("Defence bonus"),
                         value = 1, min = 1, max = 6,
                         ok_text = _("Add"),
+                        cancel_callback = back,
                         callback = function(defence)
                             add({ name = name, defence = defence })
                         end,
@@ -131,6 +133,7 @@ function Inventory.possessions(plugin)
                 title = _("What have you found?"),
                 hint = _("rune-engraved trident"),
                 ok_text = _("Next"),
+                cancel_callback = back,
                 callback = function(name)
                     name = name:match("^%s*(.-)%s*$")
                     if name == "" then back() return end
@@ -142,6 +145,7 @@ function Inventory.possessions(plugin)
 
     table.insert(items, {
         text = _("Minimize"),
+        enabled = plugin:canMinimize(),
         callback = function() plugin:minimize(back, "sheet") end,
     })
 
@@ -186,6 +190,7 @@ function Inventory.codewords(plugin)
                 title = _("Which codeword have you gained?"),
                 hint = _("Deliver"),
                 ok_text = _("Record"),
+                cancel_callback = back,
                 callback = function(word)
                     if not character:addCodeword(word) then
                         Prompts.info(_("You already have that codeword."))
@@ -205,6 +210,7 @@ function Inventory.codewords(plugin)
                 title = _("Which codeword is the book asking about?"),
                 hint = _("Artefact"),
                 ok_text = _("Check"),
+                cancel_callback = back,
                 callback = function(word)
                     word = word:match("^%s*(.-)%s*$")
                     if word == "" then back() return end
@@ -219,6 +225,7 @@ function Inventory.codewords(plugin)
 
     table.insert(items, {
         text = _("Minimize"),
+        enabled = plugin:canMinimize(),
         callback = function() plugin:minimize(back, "sheet") end,
     })
 
@@ -262,6 +269,7 @@ function Inventory.titles(plugin)
                 title = _("Titles and honours"),
                 hint = _("Illuminate of Molhern"),
                 ok_text = _("Record"),
+                cancel_callback = back,
                 callback = function(title)
                     title = title:match("^%s*(.-)%s*$")
                     if title ~= "" then
@@ -313,6 +321,7 @@ function Inventory.blessings(plugin)
                 title = _("Which blessing?"),
                 hint = _("Safety from Storms"),
                 ok_text = _("Next"),
+                cancel_callback = back,
                 callback = function(name)
                     name = name:match("^%s*(.-)%s*$")
                     if name == "" then back() return end
@@ -354,6 +363,19 @@ end
 
 -- Your god, and dying -------------------------------------------------------
 
+--- Asks before leaving a god costs resurrection arrangements.
+local function confirmLeavingGod(character, verb, at_stake, ok_callback, back)
+    Prompts.confirm{
+        text = at_stake > 0
+            and ("%s %s?\n\nThis also gives up %d resurrection arrangement%s, which were made with that temple."):format(
+                verb, character.god, at_stake, at_stake == 1 and "" or "s")
+            or ("%s %s?"):format(verb, character.god),
+        ok_text = verb,
+        ok_callback = ok_callback,
+        cancel_callback = back,
+    }
+end
+
 function Inventory.faith(plugin)
     local character = plugin.character
     local back = function() Inventory.faith(plugin) end
@@ -367,10 +389,19 @@ function Inventory.faith(plugin)
                 value = character.god or "",
                 hint = _("Nagil"),
                 ok_text = _("Set"),
+                cancel_callback = back,
                 callback = function(name)
-                    character:setGod(name)
-                    plugin:save()
-                    back()
+                    local function apply()
+                        character:setGod(name)
+                        plugin:save()
+                        back()
+                    end
+                    local at_stake = character:godChangeCost(name)
+                    if at_stake > 0 then
+                        confirmLeavingGod(character, _("Leave"), at_stake, apply, back)
+                    else
+                        apply()
+                    end
                 end,
             }
         end,
@@ -380,20 +411,11 @@ function Inventory.faith(plugin)
         table.insert(items, {
             text = _("Renounce this god"),
             callback = function()
-                local at_stake = character:arrangementCount()
-                Prompts.confirm{
-                    text = at_stake > 0
-                        and ("Renounce %s?\n\nThis also gives up %d resurrection arrangement%s, which were made with that temple."):format(
-                            character.god, at_stake, at_stake == 1 and "" or "s")
-                        or ("Renounce %s?"):format(character.god),
-                    ok_text = _("Renounce"),
-                    ok_callback = function()
-                        character:renounceGod()
-                        plugin:save()
-                        back()
-                    end,
-                    cancel_callback = back,
-                }
+                confirmLeavingGod(character, _("Renounce"), character:arrangementCount(), function()
+                    character:renounceGod()
+                    plugin:save()
+                    back()
+                end, back)
             end,
         })
     end
@@ -428,6 +450,7 @@ function Inventory.faith(plugin)
                     { input_type = "number", text = "", hint = _("Turn to which section on death") },
                 },
                 ok_text = _("Arrange"),
+                cancel_callback = back,
                 callback = function(values)
                     if not character:addResurrection(values[1], values[2]) then
                         Prompts.info(_("An arrangement needs somewhere it was made."))
@@ -492,6 +515,7 @@ function Inventory.ship(plugin)
                 Prompts.text{
                     title = _("Ship's name"), value = ship.name or "", hint = _("Sea Dog"),
                     ok_text = _("Set"),
+                    cancel_callback = back,
                     callback = function(v) ship.name = v; plugin:save(); back() end,
                 }
             end,
@@ -520,6 +544,7 @@ function Inventory.ship(plugin)
                 Prompts.text{
                     title = _("Where docked"), value = ship.docked or "", hint = _("Yellowport"),
                     ok_text = _("Set"),
+                    cancel_callback = back,
                     callback = function(v) ship.docked = v; plugin:save(); back() end,
                 }
             end,
@@ -591,6 +616,7 @@ function Inventory.cargo(plugin)
                 title = _("What are you loading?"),
                 hint = _("timber"),
                 ok_text = _("Load"),
+                cancel_callback = back,
                 callback = function(name)
                     name = name:match("^%s*(.-)%s*$")
                     if name ~= "" then
@@ -611,6 +637,7 @@ function Inventory.cargo(plugin)
                 info = _("How many units the hold takes."),
                 value = capacity or 6, min = 0, max = 50,
                 ok_text = _("Set"),
+                cancel_callback = back,
                 callback = function(v) ship.capacity = v; plugin:save(); back() end,
             }
         end,
@@ -660,6 +687,7 @@ function Inventory.stamina(plugin)
                         title = _("Lose how much Stamina?"),
                         value = 1, min = 1, max = 99,
                         ok_text = _("Lose"),
+                        cancel_callback = back,
                         callback = function(amount)
                             character:takeDamage(amount)
                             plugin:save()
@@ -681,6 +709,7 @@ function Inventory.stamina(plugin)
                         info = _("Never above your unwounded score."),
                         value = 1, min = 1, max = 99,
                         ok_text = _("Restore"),
+                        cancel_callback = back,
                         callback = function(amount)
                             character:heal(amount)
                             plugin:save()
@@ -705,6 +734,7 @@ function Inventory.stamina(plugin)
                         info = _("Your maximum, which rises with Rank."),
                         value = character.stamina_max, min = 1, max = 99,
                         ok_text = _("Set"),
+                        cancel_callback = back,
                         callback = function(value)
                             character.stamina_max = value
                             character.stamina = math.min(character.stamina, value)
@@ -728,6 +758,7 @@ function Inventory.money(plugin)
             title = title,
             value = 1, min = 1, max = 9999, hold_step = 50,
             ok_text = ok_text,
+            cancel_callback = back,
             callback = function(amount)
                 character.shards = math.max(0, character.shards + sign * amount)
                 plugin:save()
@@ -754,6 +785,7 @@ function Inventory.money(plugin)
                         title = _("How many Shards do you have?"),
                         value = character.shards, min = 0, max = 99999, hold_step = 100,
                         ok_text = _("Set"),
+                        cancel_callback = back,
                         callback = function(value)
                             character.shards = value
                             plugin:save()
@@ -786,6 +818,7 @@ function Inventory.abilities(plugin)
                     min = Rules.ABILITY_MIN,
                     max = Rules.ABILITY_MAX,
                     ok_text = _("Set"),
+                    cancel_callback = back,
                     callback = function(value)
                         character.abilities[ability] = Rules.clampAbility(value)
                         plugin:save()
@@ -810,6 +843,7 @@ function Inventory.notes(plugin)
         description = _("Anything the sheet has no box for."),
         value = character.notes or "",
         ok_text = _("Save"),
+        cancel_callback = function() plugin:showSheet() end,
         callback = function(text)
             character.notes = text
             plugin:save()

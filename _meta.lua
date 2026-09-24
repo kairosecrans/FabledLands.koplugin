@@ -1,6 +1,5 @@
 local _ = require("gettext")
 return {
-    name = "fabledlands",
     fullname = _("Fabled Lands"),
     -- KOReader does not read this; it is here so a shipped copy can be
     -- identified from a bug report.

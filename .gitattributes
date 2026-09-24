@@ -1,0 +1,8 @@
+# GitHub's source archives, which is what the App Store plugin installs from,
+# leave these out, so a device gets the plugin rather than the development
+# tools that come with it.
+spec              export-ignore
+run_tests.sh      export-ignore
+build-release.sh  export-ignore
+.gitignore        export-ignore
+.gitattributes    export-ignore

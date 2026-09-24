@@ -229,5 +229,30 @@ do
     check(lo >= 2 and hi <= 12, "2d6 stays within 2-12", ("saw %d..%d"):format(lo, hi))
 end
 
+-- Enemy stat blocks --------------------------------------------------------
+-- Every stat block in the books gives all three numbers, so all three are
+-- required. A missing COMBAT once defaulted to 0 and made enemies harmless.
+do
+    local goblin = Rules.statBlock("  Goblin ", "5", "7", "6")
+    eq(goblin.name, "Goblin", "name trimmed")
+    eq(goblin.combat, 5, "COMBAT read")
+    eq(goblin.defence, 7, "Defence read")
+    eq(goblin.stamina, 6, "Stamina read")
+
+    local nameless = Rules.statBlock("", 3, 5, 4)
+    eq(nameless.name, "", "an unnamed enemy is allowed")
+
+    local no_combat, err = Rules.statBlock("Rat", "", "3", "2")
+    eq(no_combat, nil, "a blank COMBAT is refused, not read as 0")
+    check(err ~= nil and err:find("COMBAT", 1, true) ~= nil, "and the refusal names COMBAT")
+
+    eq((Rules.statBlock("Rat", "1", "", "2")), nil, "a blank Defence is refused")
+    eq((Rules.statBlock("Rat", "1", "3", "")), nil, "a blank Stamina is refused")
+    eq((Rules.statBlock("Rat", "1", "3", "0")), nil, "an enemy with no Stamina is refused")
+    eq((Rules.statBlock("Rat", "-1", "3", "2")), nil, "a negative COMBAT is refused")
+    eq((Rules.statBlock("Rat", "x", "3", "2")), nil, "text where a number belongs is refused")
+    eq(Rules.statBlock("Rat", "0", "0", "1").combat, 0, "zero COMBAT is allowed when typed")
+end
+
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)

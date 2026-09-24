@@ -51,8 +51,11 @@ function Prompts.info(text, timeout)
 end
 
 --- Asks for a number with the spinner, which beats a keyboard on e-ink.
--- @tparam table opts title, info, value, min, max, hold_step, ok_text, callback
+-- `cancel_callback` runs however the spinner is dismissed without OK: its
+-- Close button or a tap outside it.
+-- @tparam table opts title, info, value, min, max, hold_step, ok_text, callback, cancel_callback
 function Prompts.number(opts)
+    local applied = false
     local spinner = SpinWidget:new{
         title_text = opts.title,
         info_text = opts.info,
@@ -64,7 +67,12 @@ function Prompts.number(opts)
         ok_text = opts.ok_text or _("OK"),
         ok_always_enabled = true,
         callback = function(spin)
+            applied = true
             opts.callback(spin.value)
+        end,
+        -- Runs on every close, OK included, hence the flag.
+        close_callback = opts.cancel_callback and function()
+            if not applied then opts.cancel_callback() end
         end,
     }
     UIManager:show(spinner)
@@ -74,7 +82,7 @@ end
 --- Asks for a line of text.
 -- Set `input_type = "number"` for a numeric keypad, which beats the spinner
 -- whenever the value could be three digits.
--- @tparam table opts title, description, value, hint, input_type, ok_text, callback
+-- @tparam table opts title, description, value, hint, input_type, ok_text, callback, cancel_callback
 function Prompts.text(opts)
     local dialog
     dialog = InputDialog:new{
@@ -87,7 +95,10 @@ function Prompts.text(opts)
             {
                 text = _("Cancel"),
                 id = "close",
-                callback = function() UIManager:close(dialog) end,
+                callback = function()
+                    UIManager:close(dialog)
+                    if opts.cancel_callback then opts.cancel_callback() end
+                end,
             },
             {
                 text = opts.ok_text or _("Save"),
@@ -108,14 +119,17 @@ end
 --- Asks for several values at once.
 -- `extra` adds a third button that receives whatever has been typed so far,
 -- which is how a half-filled form can be minimized and come back intact.
--- @tparam table opts title, fields (as MultiInputDialog), ok_text, callback(values), extra
+-- @tparam table opts title, fields (as MultiInputDialog), ok_text, callback(values), extra, cancel_callback
 function Prompts.fields(opts)
     local dialog
     local row = {
         {
             text = _("Cancel"),
             id = "close",
-            callback = function() UIManager:close(dialog) end,
+            callback = function()
+                UIManager:close(dialog)
+                if opts.cancel_callback then opts.cancel_callback() end
+            end,
         },
         {
             text = opts.ok_text or _("OK"),
@@ -130,6 +144,7 @@ function Prompts.fields(opts)
     if opts.extra then
         table.insert(row, 2, {
             text = opts.extra.text,
+            enabled = opts.extra.enabled ~= false,
             callback = function()
                 local values = dialog:getFields()
                 UIManager:close(dialog)

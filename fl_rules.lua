@@ -25,7 +25,6 @@ Rules.ABILITY_MIN = 1
 Rules.ABILITY_MAX = 12
 Rules.MAX_POSSESSIONS = 12
 Rules.MIN_RANK = 1
-Rules.MAX_RANK = 10
 
 Rules.STARTING_STAMINA = 9
 Rules.STARTING_SHARDS = 16
@@ -195,6 +194,29 @@ function Rules.strike(combat, bonus, target_defence, rng)
         defence = target_defence,
         damage = damage,
         hit = damage > 0,
+    }
+end
+
+--- Checks an enemy's stat block as typed from the book.
+--
+-- Every stat block in the series gives COMBAT, Defence and Stamina, so all
+-- three are required. A missing COMBAT used to default to 0, which quietly
+-- made the enemy almost unable to land a blow.
+-- @treturn table|nil { name, combat, defence, stamina }
+-- @treturn string|nil what is wrong, if anything
+function Rules.statBlock(name, combat, defence, stamina)
+    combat, defence, stamina = tonumber(combat), tonumber(defence), tonumber(stamina)
+    if not (combat and defence and stamina) then
+        return nil, "A fight needs the enemy's COMBAT, Defence and Stamina."
+    end
+    if stamina < 1 or combat < 0 or defence < 0 then
+        return nil, "Those numbers cannot be right: Stamina starts at 1 or more, and COMBAT and Defence are never negative."
+    end
+    return {
+        name = tostring(name or ""):match("^%s*(.-)%s*$"),
+        combat = combat,
+        defence = defence,
+        stamina = stamina,
     }
 end
 

@@ -26,6 +26,7 @@ local Prompts = require("fl_prompts")
 local Rules = require("fl_rules")
 local Sections = require("fl_sections")
 local UIManager = require("ui/uimanager")
+local util = require("util")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
 
@@ -33,8 +34,14 @@ local _ = require("gettext")
 -- sequence after every restart, and nothing else guarantees it is loaded.
 require("random")
 
+-- The name must match the folder, FabledLands.koplugin, exactly. Plugin
+-- management saves "disabled" under this name, but KOReader checks the
+-- folder name at startup, so any mismatch (even in case) leaves the plugin
+-- impossible to switch off. Leaving it out is no better on 2026.03, which
+-- then derives the name from the full path when the plugin lives in the
+-- user's plugins folder. Newer builds ignore this and use the folder name.
 local FabledLands = WidgetContainer:extend{
-    name = "fabledlands",
+    name = "FabledLands",
     is_doc_only = false,
 }
 
@@ -112,14 +119,14 @@ function FabledLands:onDispatcherRegisterActions()
         title = _("Fabled Lands: ability roll"),
         general = true,
     })
-    -- Worth binding to a gesture: it reopens whatever you minimized, without
-    -- the stray page turn a tap on the badge can cause.
     Dispatcher:registerAction("fabledlands_section", {
         category = "none",
         event = "FabledLandsSection",
         title = _("Fabled Lands: turn to section"),
         general = true,
     })
+    -- Worth binding to a gesture: it reopens whatever you minimized, without
+    -- the stray page turn a tap on the badge can cause.
     Dispatcher:registerAction("fabledlands_restore", {
         category = "none",
         event = "FabledLandsRestore",
@@ -141,12 +148,12 @@ function FabledLands:turnToSection()
         Prompts.info(_("Open a gamebook first."))
         return
     end
-    local doc = self:documentName()
+    local doc = self:documentKey()
     local trail = self.character and self.character:sectionTrail(doc) or {}
 
     local items = { {
         text = _("Enter a section number"),
-        callback = function() self:askSection() end,
+        callback = function() self:askSection(function() self:turnToSection() end) end,
     } }
     -- Somewhere you have already been needs no search: the page was recorded
     -- the first time, so going back is immediate.
@@ -185,13 +192,30 @@ function FabledLands:turnToSection()
     }
 end
 
---- The document's filename, used to keep one book's trail out of another's.
-function FabledLands:documentName()
+--- Identifies the open book, to keep one book's trail out of another's.
+--
+-- KOReader's partial MD5 of the file, so a trail survives the book being
+-- renamed or moved. Trails from before this were keyed by filename; the
+-- first time a book is opened they are moved over to the checksum.
+function FabledLands:documentKey()
     local file = self.ui and self.ui.document and self.ui.document.file
-    return file and file:match("([^/]+)$") or "?"
+    if not file then return "?" end
+    local name = file:match("([^/]+)$")
+
+    local ok, key = pcall(function()
+        return self.ui.doc_settings and self.ui.doc_settings:readSetting("partial_md5_checksum")
+            or util.partialMD5(file)
+    end)
+    if not ok or type(key) ~= "string" or key == "" then return name end
+
+    if self.character and self.character:rekeyTrail(name, key) > 0 then
+        self:save()
+    end
+    return key
 end
 
-function FabledLands:askSection()
+--- `cancel` is where Cancel goes back to; from a gesture that is the page.
+function FabledLands:askSection(cancel)
     -- A typed field, not a spinner: these numbers run to three digits and
     -- nobody wants to tap an arrow four hundred times.
     Prompts.text{
@@ -200,13 +224,13 @@ function FabledLands:askSection()
         hint = "412",
         input_type = "number",
         ok_text = _("Go"),
+        cancel_callback = cancel,
         callback = function(text)
             local target = tonumber(text)
             if not target or target < 1 or target > Sections.MAX_SECTION then
                 Prompts.info(_("That is not a section number."))
                 return
             end
-            self.last_section = target
             self:jumpToSection(target)
         end,
     }
@@ -230,7 +254,7 @@ It needs a text layer -- a scan that has been through OCR. Use the reader's own 
     end
 
     if self.character then
-        self.character:recordSection(target, found.page, self:documentName())
+        self.character:recordSection(target, found.page, self:documentKey())
         self:save()
     end
     self.ui:handleEvent(Event:new("GotoPage", found.page))
@@ -261,13 +285,23 @@ function FabledLands:minimize(reopen, name)
     self:showBadge()
 end
 
+--- Minimizing is for reading. In the file manager there is no page to look
+-- at, and the badge would sit over the file list, where a tap on it also
+-- lands on whatever book or folder is underneath.
+function FabledLands:canMinimize()
+    return self.ui ~= nil and self.ui.document ~= nil
+end
+
 function FabledLands:showBadge()
     self:hideBadge()
-    if not self.minimized or not self.character then return end
+    -- The minimized state is kept either way, so the badge comes back when a
+    -- book is opened again.
+    if not self.minimized or not self.character or not self:canMinimize() then return end
 
     self.badge = Badge:new{
         text = Format.badge(self.character, self.character.fight),
         on_tap = function() self:restore() end,
+        reader = self.ui,
     }
     -- The refresh type matters: show() without one queues the widget but
     -- never actually paints it, so the badge would be invisible.
@@ -300,16 +334,22 @@ function FabledLands:keepPagePut()
     end)
 end
 
---- Reopens exactly the screen that was minimized.
-function FabledLands:restore()
-    local reopen, screen = self.reopen, self.minimized
+--- Forgets the minimized state and takes the badge down, without reopening
+-- anything.
+function FabledLands:clearMinimized()
     self.reopen, self.minimized = nil, nil
     if self.settings then
         self.settings:delSetting("minimized")
         self.settings:flush()
     end
-    self:keepPagePut()
     self:hideBadge()
+end
+
+--- Reopens exactly the screen that was minimized.
+function FabledLands:restore()
+    local reopen, screen = self.reopen, self.minimized
+    self:keepPagePut()
+    self:clearMinimized()
 
     if reopen then
         -- Same session: rebuild the exact screen, partial input and all.
@@ -333,12 +373,19 @@ function FabledLands:onFabledLandsSection()
     return true
 end
 
-function FabledLands:onFabledLandsRestore()
+--- Opens the plugin. If it was minimized, that means going back to where
+-- you left off: opening it any other way would leave the badge on screen with
+-- stale numbers, still pointing at a screen you have since moved on from.
+function FabledLands:open()
     if self.minimized then
         self:restore()
     else
         self:showSheet()
     end
+end
+
+function FabledLands:onFabledLandsRestore()
+    self:open()
     return true
 end
 
@@ -376,16 +423,19 @@ function FabledLands:addToMainMenu(menu_items)
     menu_items.fabled_lands = {
         text = _("Fabled Lands"),
         sorting_hint = existingSection(self.ui.document ~= nil, "more_tools"),
-        callback = function() self:showSheet() end,
+        callback = function() self:open() end,
     }
 end
 
 function FabledLands:onFabledLandsSheet()
-    self:showSheet()
+    self:open()
     return true
 end
 
 function FabledLands:onFabledLandsRoll()
+    -- Asking for a roll is asking for a particular screen, so it drops the
+    -- minimized state rather than restoring it.
+    self:clearMinimized()
     if self.character then
         self:showRoll()
     else
@@ -452,6 +502,7 @@ function FabledLands:showSheet()
                 },
                 {
                     text = _("Minimize"),
+                    enabled = self:canMinimize(),
                     callback = function()
                         self:minimize(function() self:showSheet() end, "sheet")
                     end,
@@ -547,6 +598,7 @@ function FabledLands:editIdentity()
                         title = _("What is your character called?"),
                         value = character.name,
                         ok_text = _("Rename"),
+                        cancel_callback = back,
                         callback = function(name)
                             if character:rename(name) then
                                 self:save()
@@ -651,6 +703,7 @@ function FabledLands:showRoll()
 
     table.insert(items, {
         text = _("Minimize"),
+        enabled = self:canMinimize(),
         callback = function()
             self:minimize(function() self:showRoll() end, "sheet")
         end,
@@ -671,6 +724,7 @@ function FabledLands:askDifficulty(ability)
         min = 2,
         max = 25,
         ok_text = _("Roll"),
+        cancel_callback = function() self:showRoll() end,
         callback = function(difficulty)
             self.last_difficulty = difficulty
             self:rollAbility(ability, difficulty)
@@ -694,6 +748,7 @@ function FabledLands:rollAbility(ability, difficulty)
         }, {
             {
                 text = _("Minimize"),
+                enabled = self:canMinimize(),
                 callback = function()
                     self:minimize(function() self:rollAbility(ability, difficulty) end, "sheet")
                 end,
@@ -713,7 +768,7 @@ function FabledLands:showWelcome()
 No character yet. Create one and it will travel with you through every book in the series.]]),
         buttons = { { {
             text = _("Create a character"),
-            callback = function() self:createCharacter() end,
+            callback = function() self:createCharacter(function() self:showWelcome() end) end,
         } } },
     }
 end
@@ -737,7 +792,7 @@ function FabledLands:showCharacters()
 
     table.insert(items, {
         text = _("Create a character"),
-        callback = function() self:createCharacter() end,
+        callback = function() self:createCharacter(function() self:showCharacters() end) end,
     })
     if self.character then
         table.insert(items, {
@@ -753,11 +808,12 @@ function FabledLands:showCharacters()
     }
 end
 
-function FabledLands:createCharacter()
+function FabledLands:createCharacter(cancel)
     Prompts.text{
         title = _("What is your character called?"),
         hint = _("Andriel the Hammer"),
         ok_text = _("Next"),
+        cancel_callback = cancel,
         callback = function(name)
             name = name:match("^%s*(.-)%s*$")
             if name == "" then name = _("Adventurer") end

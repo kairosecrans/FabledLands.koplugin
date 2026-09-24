@@ -8,6 +8,11 @@ receive every event but never halt propagation. So a toast badge can notice
 its own taps while page turns still reach the reader underneath. A normal
 widget in this position would swallow them and make the book unreadable.
 
+UIManager also keeps toasts above every other window, so left alone the badge
+would sit on top of KOReader's own menus and dialogs, and a tap on it would
+press whatever button is underneath as well. It therefore only draws and
+answers taps while the page itself is the top window.
+
 The trade-off of that same mechanism: a tap on the badge also reaches the
 reader, so it may turn a page as well as restoring. The badge therefore sits
 in the corner that does the least damage, and restoring is also bound to a
@@ -33,6 +38,8 @@ local Badge = InputContainer:extend{
     toast = true,
     text = "",
     on_tap = nil,
+    -- The ReaderUI the badge floats over.
+    reader = nil,
 }
 
 function Badge:init()
@@ -73,13 +80,35 @@ function Badge:init()
     end
 end
 
+--- True when the page is the top window, ignoring other toasts.
+function Badge:isUncovered()
+    if not self.reader then return true end
+    for widget in UIManager:topdown_widgets_iter() do
+        if widget ~= self and not widget.toast and not widget.invisible then
+            return widget == self.reader
+        end
+    end
+    return false
+end
+
 --- Paints at the fixed corner position rather than wherever the caller asks,
--- since this widget owns its placement.
+-- since this widget owns its placement. Stays hidden under a menu or dialog.
 function Badge:paintTo(bb, x, y)
+    if not self:isUncovered() then
+        self.hidden = true
+        return
+    end
     InputContainer.paintTo(self, bb, self.dimen.x, self.dimen.y)
+    if self.hidden then
+        -- Closing a dialog repaints the badge but refreshes only the
+        -- dialog's own area, which need not include the badge.
+        self.hidden = false
+        UIManager:setDirty(nil, "ui", self.dimen)
+    end
 end
 
 function Badge:onTapBadge()
+    if not self:isUncovered() then return false end
     if self.on_tap then self.on_tap() end
     return true
 end

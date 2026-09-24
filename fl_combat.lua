@@ -43,20 +43,18 @@ local function enemyName(fight)
     return fight.name ~= "" and fight.name or _("Enemy")
 end
 
---- Asks for a stat block and hands back a fight table, or nil plus a reason.
+--- Turns the setup form into a fight table, or nil plus a reason.
 -- @tparam table values the four raw strings from the setup dialog
 -- @tparam table carry optional existing fight whose state should continue
 local function buildFight(values, carry)
-    local stamina = tonumber(values[4])
-    if not stamina or stamina <= 0 or not tonumber(values[3]) then
-        return nil, _("A fight needs at least the enemy's Defence and Stamina.")
-    end
+    local enemy, err = Rules.statBlock(values[1], values[2], values[3], values[4])
+    if not enemy then return nil, err end
     return {
-        name = (values[1] or ""):match("^%s*(.-)%s*$"),
-        combat = tonumber(values[2]) or 0,
-        defence = tonumber(values[3]) or 0,
-        stamina = stamina,
-        stamina_max = stamina,
+        name = enemy.name,
+        combat = enemy.combat,
+        defence = enemy.defence,
+        stamina = enemy.stamina,
+        stamina_max = enemy.stamina,
         -- Carried across a "one at a time" sequence; fresh otherwise.
         round = carry and carry.round or 0,
         log = carry and carry.log or {},
@@ -67,7 +65,8 @@ end
 
 --- The stat-block form. `typed` repopulates it after a minimize, so you can
 -- duck back to the page for the enemy's numbers without losing your place.
-local function askStatBlock(plugin, title, ok_text, callback, typed)
+-- `cancel` is where Cancel goes back to.
+local function askStatBlock(plugin, title, ok_text, callback, cancel, typed)
     typed = typed or {}
     -- The labels live in the hints rather than in per-field descriptions:
     -- with the keyboard up, four extra label rows push the buttons off the
@@ -82,46 +81,53 @@ local function askStatBlock(plugin, title, ok_text, callback, typed)
         },
         ok_text = ok_text,
         callback = callback,
+        cancel_callback = cancel,
         extra = {
             text = _("Minimize"),
+            enabled = plugin:canMinimize(),
             callback = function(values)
                 plugin:minimize(function()
-                    askStatBlock(plugin, title, ok_text, callback, values)
+                    askStatBlock(plugin, title, ok_text, callback, cancel, values)
                 end, "combat")
             end,
         },
     }
 end
 
---- Asks for the enemy's COMBAT, Defence and Stamina, as printed in the book.
-function Combat.start(plugin)
-    askStatBlock(plugin, _("Who are you fighting?"), _("Fight"), function(values)
-        local fight, err = buildFight(values)
+--- Shows the stat-block form, and hands a valid fight to `accept`.
+-- A form that fails validation comes back with what was typed still in it,
+-- rather than making you type the stat block out again.
+local function askForFight(plugin, title, carry, accept, cancel, typed)
+    local function submit(values)
+        local fight, err = buildFight(values, carry)
         if not fight then
             Prompts.info(err)
+            askForFight(plugin, title, carry, accept, cancel, values)
             return
         end
+        accept(fight)
+    end
+    askStatBlock(plugin, title, _("Fight"), submit, cancel, typed)
+end
+
+--- Asks for the enemy's COMBAT, Defence and Stamina, as printed in the book.
+function Combat.start(plugin)
+    askForFight(plugin, _("Who are you fighting?"), nil, function(fight)
         plugin.character.fight = fight
         plugin:save()
         Combat.show(plugin)
-    end)
+    end, function() plugin:showSheet() end)
 end
 
 --- Continues the same fight against the next foe in a sequence.
 local function nextEnemy(plugin)
-    local carry = plugin.character.fight
-    askStatBlock(plugin, _("Who steps up next?"), _("Fight"), function(values)
-        local fight, err = buildFight(values, carry)
-        if not fight then
-            Prompts.info(err)
-            return
-        end
+    askForFight(plugin, _("Who steps up next?"), plugin.character.fight, function(fight)
         logLine(fight, ("-- %s steps up --"):format(
             fight.name ~= "" and fight.name or _("the next foe")))
         plugin.character.fight = fight
         plugin:save()
         Combat.show(plugin)
-    end)
+    end, function() Combat.show(plugin) end)
 end
 
 --- Your blow, then the enemy's reply if it survives.
@@ -178,6 +184,7 @@ local function showModifiers(plugin)
             min = -10,
             max = 10,
             ok_text = _("Set"),
+            cancel_callback = back,
             callback = function(value)
                 apply(value)
                 plugin:save()
@@ -209,6 +216,7 @@ local function showModifiers(plugin)
             },
             {
                 text = _("Minimize"),
+                enabled = plugin:canMinimize(),
                 callback = function()
                     plugin:minimize(function() showModifiers(plugin) end, "combat")
                 end,
@@ -290,6 +298,7 @@ function Combat.show(plugin)
                         min = 1,
                         max = 50,
                         ok_text = _("Drink"),
+                        cancel_callback = function() Combat.show(plugin) end,
                         callback = function(amount)
                             local gained = character:heal(amount)
                             logLine(fight, ("  You drink -- +%d Stamina"):format(gained))
@@ -307,6 +316,7 @@ function Combat.show(plugin)
             },
             {
                 text = _("Minimize"),
+                enabled = plugin:canMinimize(),
                 callback = function()
                     plugin:minimize(function() Combat.show(plugin) end, "combat")
                 end,

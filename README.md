@@ -14,9 +14,9 @@ Vibe coded from top to bottom with Claude Opus 5 for my own personal use.
 Marana
 Rogue, 1st Rank Outcast
 
-CHARISMA 5      SANCTITY 1
-COMBAT   4      SCOUTING 2
-MAGIC    4      THIEVERY 6
+CHARISMA 5     SANCTITY 1
+COMBAT   4     SCOUTING 2
+MAGIC    4     THIEVERY 6
 
 Stamina   9/9
 Defence   6
@@ -34,9 +34,9 @@ stack.
 SCOUTING roll, Difficulty 9
 
   Dice        4 + 3 = 7
-  SCOUTING          +6
-  Item bonus        +1
-  Total             14
+  SCOUTING    +6
+  Item bonus  +1
+  Total       14
 
 SUCCESS -- needed 10, got 14
 ```
@@ -54,7 +54,7 @@ You
   this fight: attack +3
 
 Round 1
-  You     (2+2)+4+3=11 vs 7 -> 4
+  You     (2+2)+7=11 vs 7 -> 4
   Goblin  (4+5)+5=14 vs 6 -> 8
 ```
 
@@ -81,8 +81,8 @@ Cargo is counted against the hold's capacity.
 profession table, Stamina, money and gear. One character travels the whole
 series, and codewords are never erased when moving between books.
 
-**Minimize** from any screen to a small badge in the margin, leaving the page
-readable. Tapping it returns you to where you were, including a half-typed
+**Minimize** from any screen, while a book is open, to a small badge in the
+margin, leaving the page readable. Tapping it returns you to where you were, including a half-typed
 enemy stat block.
 
 Plus possessions with the 12-item limit, codewords (with a "do I have this
@@ -141,7 +141,7 @@ printed in the books.
 ## Development
 
 ```bash
-./run_tests.sh      # 820 checks, any Lua 5.1+
+./run_tests.sh      # 875 checks, any Lua 5.1+
 ./build-release.sh  # archive that extracts to FabledLands.koplugin/
 ```
 

@@ -89,7 +89,32 @@ function Character.restore(data)
     for i, word in ipairs(data.codewords) do
         data.codewords[i] = Character.normaliseCodeword(word)
     end
+    if data.ship then Character.restoreShip(data.ship) end
     return setmetatable(data, Character)
+end
+
+--- Brings a ship saved by 0.3.0 up to the current shape.
+--
+-- 0.3.0 kept every Manifest field as typed text. Cargo in particular was a
+-- description rather than a list of units, so reading it as a list either
+-- threw an error or, worse, counted the letters in "timber" as six units.
+function Character.restoreShip(ship)
+    local function tidy(text)
+        text = type(text) == "string" and text:match("^%s*(.-)%s*$") or nil
+        return text ~= "" and text or nil
+    end
+    if type(ship.cargo) == "string" then
+        local described = tidy(ship.cargo)
+        ship.cargo = described and { described } or {}
+    elseif type(ship.cargo) ~= "table" then
+        ship.cargo = {}
+    end
+    ship.capacity = tonumber(ship.capacity)
+    -- Lower case, so the type and crew pickers recognise what is stored and
+    -- the ship roll can look up its dice.
+    ship.type = tidy(ship.type) and tidy(ship.type):lower()
+    ship.crew = tidy(ship.crew) and tidy(ship.crew):lower()
+    return ship
 end
 
 -- Derived scores -----------------------------------------------------------
@@ -337,6 +362,36 @@ function Character:sectionTrail(doc)
     return out
 end
 
+--- Moves the trail recorded under one document key to another, for when
+-- the way books are identified changes. Returns how many entries moved.
+function Character:rekeyTrail(from, to)
+    if not self.trail or from == to then return 0 end
+    local moved = 0
+    for _, entry in ipairs(self.trail) do
+        if entry.doc == from then
+            entry.doc = to
+            moved = moved + 1
+        end
+    end
+    if moved == 0 then return 0 end
+
+    -- The book may have gathered a trail under both keys. Keep the most
+    -- recent visit to each section, and keep within the length limit.
+    local seen, kept = {}, 0
+    for i = #self.trail, 1, -1 do
+        local entry = self.trail[i]
+        if entry.doc == to then
+            if seen[entry.section] or kept >= Character.TRAIL_LENGTH then
+                table.remove(self.trail, i)
+            else
+                seen[entry.section] = true
+                kept = kept + 1
+            end
+        end
+    end
+    return moved
+end
+
 function Character:clearTrail(doc)
     if not self.trail then return end
     for i = #self.trail, 1, -1 do
@@ -347,11 +402,26 @@ end
 -- Your god, and dying -------------------------------------------------------
 
 --- Sets the god in the God box. One at a time; the books have you renounce
--- one before taking up another.
+-- one before taking up another, so naming a different god (or clearing the
+-- box) renounces the old one, arrangements and all.
+-- @treturn string|nil the god now worshipped
+-- @treturn int how many resurrection arrangements that gave up
 function Character:setGod(name)
-    name = tostring(name):match("^%s*(.-)%s*$")
+    local lost = self:godChangeCost(name)
+    if lost > 0 then self.resurrection = {} end
+    name = tostring(name or ""):match("^%s*(.-)%s*$")
     self.god = name ~= "" and name or nil
-    return self.god
+    return self.god, lost
+end
+
+--- How many resurrection arrangements setting `name` would give up, so the
+-- caller can ask first. Naming a first god, or retyping the current one in
+-- different case, costs nothing.
+function Character:godChangeCost(name)
+    if not self.god then return 0 end
+    name = tostring(name or ""):match("^%s*(.-)%s*$")
+    if name:lower() == self.god:lower() then return 0 end
+    return self:arrangementCount()
 end
 
 --- Renouncing a god costs any outstanding resurrection arrangements, since
