@@ -1,7 +1,7 @@
 --[[--
 Editors for the parts of the Adventure Sheet you write in with a pencil:
-possessions, codewords, titles, blessings, the Ship's Manifest, Stamina,
-money and abilities.
+possessions and money, codewords, titles, blessings, the Ship's Manifest,
+Stamina and abilities.
 
 Every screen returns to the one that opened it, so the whole thing behaves
 like a stack of sheets rather than a maze.
@@ -96,6 +96,30 @@ local function askItemEffect(plugin, name, back)
     }
 end
 
+--- Asks for an amount of Shards. Typed, not a spinner: a purse runs to
+-- hundreds.
+local function askShards(plugin, title, value, ok_text, apply, back)
+    Prompts.text{
+        title = title,
+        value = value,
+        input_type = "number",
+        ok_text = ok_text,
+        cancel_callback = back,
+        callback = function(text)
+            local amount = tonumber(text)
+            if not amount or amount < 0 or amount ~= math.floor(amount) then
+                Prompts.info(_("That is not a number of Shards."))
+            else
+                apply(amount)
+                plugin:save()
+            end
+            back()
+        end,
+    }
+end
+
+--- Possessions, with money on the same screen: buying and selling touch
+--- both, so they belong together.
 function Inventory.possessions(plugin)
     local character = plugin.character
     local back = function() Inventory.possessions(plugin) end
@@ -149,10 +173,38 @@ function Inventory.possessions(plugin)
         callback = function() plugin:minimize(back, "sheet") end,
     })
 
-    Prompts.menu{
-        title = ("%s  %d/%d\n\n%s"):format(_("Possessions"), #character.possessions,
-            Rules.MAX_POSSESSIONS, _("Only your best weapon and armour count.")),
-        items = items,
+    local function adjust(title, ok_text, sign)
+        askShards(plugin, title, "", ok_text, function(amount)
+            character.shards = math.max(0, character.shards + sign * amount)
+        end, back)
+    end
+
+    local rows = { {
+        {
+            text = _("Gain"),
+            callback = function() adjust(_("Gain how many Shards?"), _("Gain"), 1) end,
+        },
+        {
+            text = _("Spend"),
+            callback = function() adjust(_("Spend how many Shards?"), _("Spend"), -1) end,
+        },
+        {
+            text = _("Set"),
+            callback = function()
+                askShards(plugin, _("How many Shards do you have?"), tostring(character.shards),
+                    _("Set"), function(value) character.shards = value end, back)
+            end,
+        },
+    } }
+    for _i, item in ipairs(items) do table.insert(rows, { item }) end
+
+    Prompts.panel{
+        -- Money last, so its line sits directly above its buttons.
+        title = ("%s  %d/%d\n%s\n\n%s  %d Shards"):format(
+            _("Possessions"), #character.possessions, Rules.MAX_POSSESSIONS,
+            _("Only your best weapon and armour count."),
+            _("Money"), character.shards),
+        buttons = rows,
         close_callback = function() plugin:showSheet() end,
     }
 end
@@ -671,7 +723,7 @@ function Inventory.shipRoll(plugin)
     }
 end
 
--- Stamina, money, abilities ------------------------------------------------
+-- Stamina and abilities --------------------------------------------------
 
 function Inventory.stamina(plugin)
     local character = plugin.character
@@ -742,60 +794,6 @@ function Inventory.stamina(plugin)
                             back()
                         end,
                     }
-                end,
-            },
-        },
-        close_callback = function() plugin:showSheet() end,
-    }
-end
-
-function Inventory.money(plugin)
-    local character = plugin.character
-    local back = function() Inventory.money(plugin) end
-
-    -- Typed, not a spinner: a purse runs to hundreds of Shards.
-    local function askShards(title, value, ok_text, apply)
-        Prompts.text{
-            title = title,
-            value = value,
-            input_type = "number",
-            ok_text = ok_text,
-            cancel_callback = back,
-            callback = function(text)
-                local amount = tonumber(text)
-                if not amount or amount < 0 or amount ~= math.floor(amount) then
-                    Prompts.info(_("That is not a number of Shards."))
-                else
-                    apply(amount)
-                    plugin:save()
-                end
-                back()
-            end,
-        }
-    end
-
-    local function adjust(title, ok_text, sign)
-        askShards(title, "", ok_text, function(amount)
-            character.shards = math.max(0, character.shards + sign * amount)
-        end)
-    end
-
-    Prompts.menu{
-        title = ("%s  %d Shards"):format(_("Money"), character.shards),
-        items = {
-            {
-                text = _("Gain Shards"),
-                callback = function() adjust(_("Gain how many Shards?"), _("Gain"), 1) end,
-            },
-            {
-                text = _("Spend Shards"),
-                callback = function() adjust(_("Spend how many Shards?"), _("Spend"), -1) end,
-            },
-            {
-                text = _("Set the exact amount"),
-                callback = function()
-                    askShards(_("How many Shards do you have?"), tostring(character.shards),
-                        _("Set"), function(value) character.shards = value end)
                 end,
             },
         },

@@ -537,7 +537,6 @@ function FabledLands:showMore()
         title = _("Adventure Sheet"),
         items = {
             { text = _("Abilities"), callback = function() Inventory.abilities(self) end },
-            { text = _("Money"), callback = function() Inventory.money(self) end },
             { text = _("Titles and honours"), callback = function() Inventory.titles(self) end },
             { text = _("Blessings"), callback = function() Inventory.blessings(self) end },
             { text = _("God and resurrection"), callback = function() Inventory.faith(self) end },
