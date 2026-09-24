@@ -62,7 +62,14 @@ Signed **modifiers** handle the local rules the books impose: a bonus for
 carrying some item, a penalty for fighting in the dark. They last one fight
 and don't touch your sheet. **Next enemy** continues the same fight for foes
 fought one at a time, carrying Stamina, rounds and log across. There are also
-buttons for a lone enemy blow, a potion mid-fight, and fleeing.
+buttons for a lone enemy blow, healing mid-fight, and fleeing.
+
+**A dice roller** for the rolls that aren't ability checks: one to four dice,
+with your Rank, Defence, Stamina and abilities beside the result for whatever
+the book asks you to add or compare.
+
+**Curses, diseases and poisons** lower the abilities they name until they're
+cured, and curing gives the points back.
 
 **Turn to section.** Section numbers aren't page numbers. Type the number and
 it goes there. Every jump is remembered per book, so returning to a section
@@ -82,11 +89,12 @@ profession table, Stamina, money and gear. One character travels the whole
 series, and codewords are never erased when moving between books.
 
 **Minimize** from any screen, while a book is open, to a small badge in the
-margin, leaving the page readable. Tapping it returns you to where you were, including a half-typed
-enemy stat block.
+margin, leaving the page readable. Tapping it returns you to where you were,
+including a half-typed enemy stat block.
 
-Plus possessions with the 12-item limit, codewords (with a "do I have this
-one?" lookup), titles, blessings, money, and Rank advancement. Rank can also
+Plus possessions with the 12-item limit and money on the same screen, healing
+items you can use, money and possessions stored elsewhere, codewords (with a
+"do I have this one?" lookup), titles, blessings, and Rank advancement. Rank can also
 be lost, as the books sometimes impose, with a separate exact undo for a
 mis-tap. Name and profession can be corrected after creation, and you can keep
 several characters and switch between them.
@@ -109,8 +117,8 @@ On Android that folder is `/storage/emulated/0/koreader/plugins/`; on Kobo,
 
 Restart KOReader. It appears under **Tools → More tools → Fabled Lands**.
 
-Four actions can be bound to a gesture under *Taps and gestures*: Adventure
-Sheet, ability roll, turn to section, and restore minimized.
+Five actions can be bound to a gesture under *Taps and gestures*: Adventure
+Sheet, ability roll, dice roller, turn to section, and restore minimized.
 
 Characters live in KOReader's settings directory as `fabledlands.lua`, not in
 the plugin folder, so reinstalling doesn't touch them.
@@ -141,7 +149,7 @@ printed in the books.
 ## Development
 
 ```bash
-./run_tests.sh      # 875 checks, any Lua 5.1+
+./run_tests.sh      # 943 checks, any Lua 5.1+
 ./build-release.sh  # archive that extracts to FabledLands.koplugin/
 ```
 
