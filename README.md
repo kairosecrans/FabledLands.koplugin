@@ -69,6 +69,14 @@ it goes there. Every jump is remembered per book, so returning to a section
 you've visited is immediate. Requires a text layer (a scan that has been
 through OCR), and says so if a book has none.
 
+**Your god and resurrection arrangements**, which the printed sheet has a box
+for. When Stamina reaches zero the sheet shows the arrangement you made, since
+that is the moment you need it.
+
+**A ship** with its own roll: one die for a barque, two for a brigantine,
+three for a galleon, plus one for a good crew or two for an excellent one.
+Cargo is counted against the hold's capacity.
+
 **Start in any book.** Book N begins you at Rank N with that book's own
 profession table, Stamina, money and gear. One character travels the whole
 series, and codewords are never erased when moving between books.
@@ -78,9 +86,10 @@ readable. Tapping it returns you to where you were, including a half-typed
 enemy stat block.
 
 Plus possessions with the 12-item limit, codewords (with a "do I have this
-one?" lookup), titles, blessings, the Ship's Manifest, money, and Rank
-advancement. Rank can also be lost, as the books sometimes impose, with a
-separate exact undo for a mis-tap.
+one?" lookup), titles, blessings, money, and Rank advancement. Rank can also
+be lost, as the books sometimes impose, with a separate exact undo for a
+mis-tap. Name and profession can be corrected after creation, and you can keep
+several characters and switch between them.
 
 ## Installing
 
@@ -123,6 +132,8 @@ From Book 1, *The War-Torn Kingdom*, pp. 5-7:
   books.
 - **Starting later.** Book N starts you at Rank N, with that book's profession
   table.
+- **Rolling for a ship.** One die for a barque, two for a brigantine, three
+  for a galleon; +1 for a good crew, +2 for an excellent one.
 
 The tests check these against the examples and pre-generated characters
 printed in the books.
@@ -130,7 +141,7 @@ printed in the books.
 ## Development
 
 ```bash
-./run_tests.sh      # 774 checks, any Lua 5.1+
+./run_tests.sh      # 820 checks, any Lua 5.1+
 ./build-release.sh  # archive that extracts to FabledLands.koplugin/
 ```
 
