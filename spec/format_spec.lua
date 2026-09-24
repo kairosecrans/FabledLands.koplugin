@@ -288,13 +288,23 @@ do
     check(#long <= 32, "badge stays narrow", ("%d chars"):format(#long))
 end
 
--- Plain rolls -------------------------------------------------------------
+-- Dice roller -------------------------------------------------------------
 do
-    eq(Format.plainRoll({ 4, 3 }, 7), "Two dice\n\n  4 + 3 = 7", "two dice show both and the total")
-    eq(Format.plainRoll({ 5 }, 5), "One die\n\n  5", "one die shows just the number")
+    local Character = require("fl_character")
+    local hero = Character.create("Marana", "Rogue")
+    hero:addPossession({ name = "lockpicks", ability = "THIEVERY", bonus = 2 })
 
-    local dice, total = Rules.rollDice(2, scripted(6, 2))
-    contains(Format.plainRoll(dice, total), "6 + 2 = 8", "renders a real roll")
+    local fresh = Format.diceRoller(hero)
+    contains(fresh, "Rank 1     Defence 6     Stamina 9/9", "stats line for the mental math")
+    contains(fresh, "THIEVERY 6+2", "abilities shown with gear bonuses")
+    contains(fresh, "How many dice?", "prompt before the first roll")
+
+    local dice, total = Rules.rollDice(3, scripted(4, 6, 2))
+    local three = Format.diceRoller(hero, { dice = dice, total = total })
+    contains(three, "Three dice   4 + 6 + 2 = 12", "three dice show each die and the total")
+    lacks(three, "How many dice?", "the prompt gives way to the result")
+    contains(Format.diceRoller(hero, { dice = { 5 }, total = 5 }), "One die      5", "one die shows just the number")
+    contains(Format.diceRoller(hero, { dice = { 1, 2, 3, 4 }, total = 10 }), "Four dice    1 + 2 + 3 + 4 = 10", "four dice")
 end
 
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))

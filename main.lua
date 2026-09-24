@@ -119,6 +119,12 @@ function FabledLands:onDispatcherRegisterActions()
         title = _("Fabled Lands: ability roll"),
         general = true,
     })
+    Dispatcher:registerAction("fabledlands_dice", {
+        category = "none",
+        event = "FabledLandsDice",
+        title = _("Fabled Lands: dice roller"),
+        general = true,
+    })
     Dispatcher:registerAction("fabledlands_section", {
         category = "none",
         event = "FabledLandsSection",
@@ -461,6 +467,16 @@ function FabledLands:onFabledLandsRoll()
     return true
 end
 
+function FabledLands:onFabledLandsDice()
+    self:clearMinimized()
+    if self.character then
+        self:showDice()
+    else
+        self:showSheet()
+    end
+    return true
+end
+
 -- The Adventure Sheet ------------------------------------------------------
 
 function FabledLands:showSheet()
@@ -536,6 +552,7 @@ function FabledLands:showMore()
     Prompts.menu{
         title = _("Adventure Sheet"),
         items = {
+            { text = _("Dice roller"), callback = function() self:showDice() end },
             { text = _("Abilities"), callback = function() Inventory.abilities(self) end },
             { text = _("Titles and honours"), callback = function() Inventory.titles(self) end },
             { text = _("Blessings"), callback = function() Inventory.blessings(self) end },
@@ -717,16 +734,6 @@ function FabledLands:showRoll()
         })
     end
 
-    -- Sometimes the book wants dice and no ability at all.
-    table.insert(items, {
-        text = _("Roll one die"),
-        callback = function() self:rollPlain(1) end,
-    })
-    table.insert(items, {
-        text = _("Roll two dice"),
-        callback = function() self:rollPlain(2) end,
-    })
-
     table.insert(items, {
         text = _("Minimize"),
         enabled = self:canMinimize(),
@@ -736,7 +743,7 @@ function FabledLands:showRoll()
     })
 
     Prompts.menu{
-        title = _("What is the book asking you to roll?"),
+        title = _("Which ability is the book asking for?"),
         items = items,
         close_callback = function() self:showSheet() end,
     }
@@ -790,33 +797,36 @@ function FabledLands:showCheck(ability, difficulty, result)
     }
 end
 
-function FabledLands:rollPlain(count)
-    local dice, total = Rules.rollDice(count)
-    self:showPlainRoll(count, dice, total)
-end
+--- The dice roller: any number of plain dice, with your numbers beside
+-- them for whatever the book wants added or compared. `roll` is the last
+-- result, kept so a restored minimize shows the same dice.
+function FabledLands:showDice(roll)
+    local function rollRow()
+        local row = {}
+        for count = 1, 4 do
+            table.insert(row, {
+                text = count == 1 and _("1 die") or ("%d dice"):format(count),
+                callback = function()
+                    local dice, total = Rules.rollDice(count)
+                    self:showDice({ dice = dice, total = total })
+                end,
+            })
+        end
+        return row
+    end
 
-function FabledLands:showPlainRoll(count, dice, total)
     Prompts.panel{
-        title = Format.plainRoll(dice, total),
-        buttons = { {
-            {
-                text = _("Roll again"),
-                callback = function() self:rollPlain(count) end,
-            },
-            {
-                text = _("Another roll"),
-                callback = function() self:showRoll() end,
-            },
-        }, {
-            {
+        title = Format.diceRoller(self.character, roll),
+        buttons = {
+            rollRow(),
+            { {
                 text = _("Minimize"),
                 enabled = self:canMinimize(),
                 callback = function()
-                    self:minimize(function() self:showPlainRoll(count, dice, total) end, "sheet")
+                    self:minimize(function() self:showDice(roll) end, "sheet")
                 end,
-            },
-        } },
-        close_text = _("Adventure Sheet"),
+            } },
+        },
         close_callback = function() self:showSheet() end,
     }
 end

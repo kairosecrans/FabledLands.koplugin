@@ -210,15 +210,32 @@ function Format.shipRoll(result)
     return table.concat(lines, "\n")
 end
 
---- A plain roll, for when the book asks for dice without an ability.
-local DICE_WORDS = { "One die", "Two dice" }
+--- The dice roller: your numbers for the mental math, then the last roll.
+-- The books ask for dice in many shapes (add your Rank, beat your Rank, a
+-- Warrior rolls three), so the roller shows the parts rather than guessing
+-- the sum.
+-- @tparam table roll { dice = {..}, total = n }, or nil before the first roll
+local DICE_WORDS = { "One die", "Two dice", "Three dice", "Four dice" }
 
-function Format.plainRoll(dice, total)
-    local label = DICE_WORDS[#dice] or ("%d dice"):format(#dice)
-    if #dice == 1 then
-        return ("%s\n\n  %d"):format(label, total)
+function Format.diceRoller(character, roll)
+    local lines = {
+        ("Rank %d     Defence %d     Stamina %d/%d"):format(character.rank,
+            character:defence(), character.stamina, character.stamina_max),
+        "",
+        Format.abilities(character),
+        "",
+    }
+    if not roll then
+        table.insert(lines, "How many dice?")
+    else
+        local label = pad(DICE_WORDS[#roll.dice] or ("%d dice"):format(#roll.dice), 13)
+        if #roll.dice == 1 then
+            table.insert(lines, label .. roll.total)
+        else
+            table.insert(lines, ("%s%s = %d"):format(label, table.concat(roll.dice, " + "), roll.total))
+        end
     end
-    return ("%s\n\n  %s = %d"):format(label, table.concat(dice, " + "), total)
+    return table.concat(lines, "\n")
 end
 
 --- Describes the situational modifiers in force, for the modifiers screen.
