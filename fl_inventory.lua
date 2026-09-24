@@ -781,14 +781,21 @@ function Inventory.money(plugin)
             {
                 text = _("Set the exact amount"),
                 callback = function()
-                    Prompts.number{
+                    -- Typed, not a spinner: a purse runs to hundreds of Shards.
+                    Prompts.text{
                         title = _("How many Shards do you have?"),
-                        value = character.shards, min = 0, max = 99999, hold_step = 100,
+                        value = tostring(character.shards),
+                        input_type = "number",
                         ok_text = _("Set"),
                         cancel_callback = back,
-                        callback = function(value)
-                            character.shards = value
-                            plugin:save()
+                        callback = function(text)
+                            local value = tonumber(text)
+                            if not value or value < 0 or value ~= math.floor(value) then
+                                Prompts.info(_("That is not a number of Shards."))
+                            else
+                                character.shards = value
+                                plugin:save()
+                            end
                             back()
                         end,
                     }
