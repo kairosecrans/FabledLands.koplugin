@@ -1,8 +1,8 @@
 # FabledLands.koplugin
 
 A KOReader plugin for the **Fabled Lands** gamebooks by Dave Morris and Jamie
-Thomson. It keeps your Adventure Sheet, rolls the dice, runs fights, and turns
-to the section you were told to turn to.
+Thomson. Keeps your Adventure Sheet, rolls the dice, runs fights, and turns to
+the section you were told to turn to.
 
 Vibe coded from top to bottom with Claude Opus 5 for my own personal use.
 
@@ -24,8 +24,8 @@ Money     16 Shards
 Carrying  3/12 items
 ```
 
-Defence is derived from COMBAT, Rank and your best armour — never typed in.
-Item bonuses show against the ability they help (`THIEVERY 6+2`), and never
+Defence is derived from COMBAT, Rank and your best armour, not typed in.
+Item bonuses show against the ability they help (`THIEVERY 6+2`) and never
 stack.
 
 **Ability rolls** show the arithmetic, and say what you *needed*:
@@ -41,10 +41,9 @@ SCOUTING roll, Difficulty 9
 SUCCESS -- needed 10, got 14
 ```
 
-*Needed 10*, not *needed 9*: you must beat the Difficulty outright. That's the
-rule people most often get wrong.
+*Needed 10*, not *needed 9*: the roll must beat the Difficulty outright.
 
-**Fights**, one round per tap — you strike, then the enemy strikes back:
+**Fights**, one round per tap. You strike, then the enemy strikes back:
 
 ```
 Goblin
@@ -59,30 +58,29 @@ Round 1
   Goblin  (4+5)+5=14 vs 6 -> 8
 ```
 
-Signed **modifiers** cover the local rules the books spring on you — a bonus
-for carrying some item, a penalty for fighting in the dark. They last one
-fight and never touch your sheet. **Next enemy** continues the *same* fight
-for foes fought one at a time, carrying Stamina, rounds and log across. There
-are also buttons for a lone enemy blow, a potion mid-fight, and fleeing.
+Signed **modifiers** handle the local rules the books impose: a bonus for
+carrying some item, a penalty for fighting in the dark. They last one fight
+and don't touch your sheet. **Next enemy** continues the same fight for foes
+fought one at a time, carrying Stamina, rounds and log across. There are also
+buttons for a lone enemy blow, a potion mid-fight, and fleeing.
 
 **Turn to section.** Section numbers aren't page numbers. Type the number and
-it goes there — no index, no setup, no confirmation step. Every jump is
-remembered per book, so returning to a section you've already visited is
-instant. Needs a text layer (a scan that has been through OCR), and says so
-plainly if a book has none.
+it goes there. Every jump is remembered per book, so returning to a section
+you've visited is immediate. Requires a text layer (a scan that has been
+through OCR), and says so if a book has none.
 
 **Start in any book.** Book N begins you at Rank N with that book's own
 profession table, Stamina, money and gear. One character travels the whole
-series, and codewords are never erased moving between books.
+series, and codewords are never erased when moving between books.
 
 **Minimise** from any screen to a small badge in the margin, leaving the page
-readable. Tapping it returns you to exactly where you were — including a
-half-typed enemy stat block.
+readable. Tapping it returns you to where you were, including a half-typed
+enemy stat block.
 
 Plus possessions with the 12-item limit, codewords (with a "do I have this
 one?" lookup), titles, blessings, the Ship's Manifest, money, and Rank
-advancement — or Rank *loss*, as the books sometimes impose, with a separate
-exact undo for a mis-tap.
+advancement. Rank can also be lost, as the books sometimes impose, with a
+separate exact undo for a mis-tap.
 
 ## Installing
 
@@ -103,33 +101,29 @@ On Android that folder is `/storage/emulated/0/koreader/plugins/`; on Kobo,
 Restart KOReader. It appears under **Tools → More tools → Fabled Lands**.
 
 Four actions can be bound to a gesture under *Taps and gestures*: Adventure
-Sheet, ability roll, turn to section, and restore minimised. The section jump
-is the one worth a gesture.
+Sheet, ability roll, turn to section, and restore minimised.
 
-Characters live in KOReader's settings directory as `fabledlands.lua`, well
-away from the plugin folder, so reinstalling never touches them.
+Characters live in KOReader's settings directory as `fabledlands.lua`, not in
+the plugin folder, so reinstalling doesn't touch them.
 
 ## The rules
 
-Transcribed from Book 1, *The War-Torn Kingdom* (pp. 5–7), not from memory:
+From Book 1, *The War-Torn Kingdom*, pp. 5-7:
 
 | | |
 |---|---|
 | Ability check | 2d6 + ability, must be **strictly greater** than the Difficulty |
 | Defence | COMBAT + Rank + best armour bonus |
 | A blow | 2d6 + COMBAT against the target's Defence; the margin is Stamina lost |
-| Item bonuses | Never cumulative — only your best item counts per ability |
+| Item bonuses | Never cumulative; only your best item counts per ability |
 | Abilities | 1 to 12 |
 | Possessions | 12 maximum |
 | Rank change | ±1 Rank and 1d6 Stamina, permanently |
 | Codewords | Lettered by book (A = Book 1, B = Book 2 …), carried between books |
 | Starting later | Book N starts you at Rank N, with that book's profession table |
 
-The tests encode the book's own worked examples — the goblin fight on p. 6,
-the Difficulty 10 CHARISMA roll on p. 5, the non-stacking lockpicks on p. 7 —
-so a failure means the plugin disagrees with the printed rules. The
-pre-generated characters are checked too: their Defence scores have to fall
-out of the formulas.
+The tests check these against the examples and pre-generated characters
+printed in the books.
 
 ## Development
 
@@ -150,19 +144,18 @@ out of the formulas.
 | `fl_badge.lua` | The minimised badge |
 | `main.lua` | Plugin lifecycle, menu, persistence |
 
-The first four have no KOReader imports, which is what makes them testable
-from a bare interpreter.
+The first four have no KOReader imports, so they run under a bare interpreter.
 
 Modules are prefixed `fl_` because KOReader shares one `package.path` across
-every loaded plugin. `spec/lint_spec.lua` enforces that, and rejects two
-mistakes that cost real debugging time here: rebinding `_` in a file that uses
-it as the gettext alias, and doing any KOReader work at module load. Both fail
-silently, leaving the plugin loaded but unreachable.
+every loaded plugin. `spec/lint_spec.lua` enforces the prefix, and rejects two
+things that fail silently and leave the plugin loaded but unreachable:
+rebinding `_` in a file that uses it as the gettext alias, and doing KOReader
+work at module load.
 
 ## Licence
 
 GPL-3.0, see [LICENSE](LICENSE).
 
 *Fabled Lands* is the work of Dave Morris and Jamie Thomson. This is an
-unofficial play aid and reproduces none of the books' text — you still need
-the books.
+unofficial play aid and contains none of the books' text. You still need the
+books.
