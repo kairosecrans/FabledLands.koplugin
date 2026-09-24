@@ -143,17 +143,21 @@ end
 -- own text. It needs a text layer: a scan without OCR, or a reflowable EPUB
 -- with no printed markers, will find nothing, and the failure says so rather
 -- than jumping somewhere arbitrary.
-function FabledLands:turnToSection()
+--
+-- `on_close` is where Close goes: the Adventure Sheet by default, or nowhere
+-- (back to the page) when the list was opened from the gesture's input.
+function FabledLands:turnToSection(on_close)
     if not (self.ui and self.ui.document) then
         Prompts.info(_("Open a gamebook first."))
         return
     end
+    local back = function() self:turnToSection(on_close) end
     local doc = self:documentKey()
     local trail = self.character and self.character:sectionTrail(doc) or {}
 
     local items = { {
         text = _("Enter a section number"),
-        callback = function() self:askSection(function() self:turnToSection() end) end,
+        callback = function() self:askSection(back) end,
     } }
     -- Somewhere you have already been needs no search: the page was recorded
     -- the first time, so going back is immediate.
@@ -175,9 +179,9 @@ function FabledLands:turnToSection()
                     ok_callback = function()
                         self.character:clearTrail(doc)
                         self:save()
-                        self:turnToSection()
+                        back()
                     end,
-                    cancel_callback = function() self:turnToSection() end,
+                    cancel_callback = back,
                 }
             end,
         })
@@ -188,7 +192,7 @@ function FabledLands:turnToSection()
             and _("Turn to section\n\nRecently visited, most recent first:")
             or _("Turn to section"),
         items = items,
-        close_callback = function() self:showSheet() end,
+        close_callback = on_close or function() self:showSheet() end,
     }
 end
 
@@ -214,8 +218,20 @@ function FabledLands:documentKey()
     return key
 end
 
---- `cancel` is where Cancel goes back to; from a gesture that is the page.
+--- `cancel` is where Cancel goes back to. Without one this was opened from
+-- the gesture: Cancel returns to the page, and a History button reaches the
+-- sections already visited, which otherwise sit behind the Adventure Sheet.
 function FabledLands:askSection(cancel)
+    local history
+    if not cancel then
+        local trail = self.character and self.character:sectionTrail(self:documentKey()) or {}
+        history = {
+            text = _("History"),
+            enabled = #trail > 0,
+            callback = function() self:turnToSection(function() end) end,
+        }
+    end
+
     -- A typed field, not a spinner: these numbers run to three digits and
     -- nobody wants to tap an arrow four hundred times.
     Prompts.text{
@@ -225,6 +241,7 @@ function FabledLands:askSection(cancel)
         input_type = "number",
         ok_text = _("Go"),
         cancel_callback = cancel,
+        extra = history,
         callback = function(text)
             local target = tonumber(text)
             if not target or target < 1 or target > Sections.MAX_SECTION then

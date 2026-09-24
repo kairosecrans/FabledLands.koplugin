@@ -82,34 +82,47 @@ end
 --- Asks for a line of text.
 -- Set `input_type = "number"` for a numeric keypad, which beats the spinner
 -- whenever the value could be three digits.
--- @tparam table opts title, description, value, hint, input_type, ok_text, callback, cancel_callback
+-- `extra` adds a middle button that closes the dialog and runs its callback.
+-- @tparam table opts title, description, value, hint, input_type, ok_text, callback, cancel_callback, extra
 function Prompts.text(opts)
     local dialog
+    local row = {
+        {
+            text = _("Cancel"),
+            id = "close",
+            callback = function()
+                UIManager:close(dialog)
+                if opts.cancel_callback then opts.cancel_callback() end
+            end,
+        },
+        {
+            text = opts.ok_text or _("Save"),
+            is_enter_default = true,
+            callback = function()
+                local value = dialog:getInputText()
+                UIManager:close(dialog)
+                opts.callback(value)
+            end,
+        },
+    }
+    if opts.extra then
+        table.insert(row, 2, {
+            text = opts.extra.text,
+            enabled = opts.extra.enabled ~= false,
+            callback = function()
+                UIManager:close(dialog)
+                opts.extra.callback()
+            end,
+        })
+    end
+
     dialog = InputDialog:new{
         title = opts.title,
         description = opts.description,
         input = opts.value or "",
         input_hint = opts.hint,
         input_type = opts.input_type,
-        buttons = { {
-            {
-                text = _("Cancel"),
-                id = "close",
-                callback = function()
-                    UIManager:close(dialog)
-                    if opts.cancel_callback then opts.cancel_callback() end
-                end,
-            },
-            {
-                text = opts.ok_text or _("Save"),
-                is_enter_default = true,
-                callback = function()
-                    local value = dialog:getInputText()
-                    UIManager:close(dialog)
-                    opts.callback(value)
-                end,
-            },
-        } },
+        buttons = { row },
     }
     UIManager:show(dialog)
     dialog:onShowKeyboard()
