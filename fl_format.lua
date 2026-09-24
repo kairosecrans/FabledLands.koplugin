@@ -66,6 +66,16 @@ function Format.item(item)
     return item.name
 end
 
+--- One line summing up a store: "120 Shards, 2 items".
+function Format.storeContents(store)
+    local parts = {}
+    if store.shards > 0 then table.insert(parts, ("%d Shards"):format(store.shards)) end
+    if #store.items > 0 then
+        table.insert(parts, ("%d item%s"):format(#store.items, #store.items == 1 and "" or "s"))
+    end
+    return #parts > 0 and table.concat(parts, ", ") or "empty"
+end
+
 --- The whole profession table, aligned, for choosing at creation.
 -- Buttons render on a single line in a proportional font, so the comparison
 -- goes in the panel's monospaced title and the buttons carry only the names.
@@ -128,6 +138,13 @@ function Format.sheet(character)
             table.insert(names, blessing.name)
         end
         table.insert(lines, pad("Blessings", 10) .. table.concat(names, ", "))
+    end
+    if #(character.stores or {}) > 0 then
+        local places = {}
+        for _, store in ipairs(character.stores) do
+            table.insert(places, store.place)
+        end
+        table.insert(lines, pad("Stored at", 10) .. table.concat(places, ", "))
     end
     if #(character.afflictions or {}) > 0 then
         local names = {}

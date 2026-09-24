@@ -62,6 +62,7 @@ function Character.create(name, profession, book)
         titles = {},
         blessings = {},
         afflictions = {},
+        stores = {},
         notes = "",
     })
 end
@@ -76,6 +77,11 @@ function Character.restore(data)
     data.titles = data.titles or {}
     data.blessings = data.blessings or {}
     data.afflictions = data.afflictions or {}
+    data.stores = data.stores or {}
+    for _, store in ipairs(data.stores) do
+        store.shards = tonumber(store.shards) or 0
+        store.items = store.items or {}
+    end
     data.rank_gains = data.rank_gains or {}
     data.trail = data.trail or {}
     data.resurrection = data.resurrection or {}
@@ -498,6 +504,59 @@ end
 
 function Character:removeBlessing(index)
     return table.remove(self.blessings, index)
+end
+
+-- Stored elsewhere --------------------------------------------------------
+-- Money deposited or invested, and possessions left in a house or with
+-- someone. None of it counts against the twelve you carry, and none of it
+-- can be used until you go back for it.
+
+function Character:addStore(place)
+    place = tostring(place or ""):match("^%s*(.-)%s*$")
+    if place == "" then return nil end
+    local store = { place = place, shards = 0, items = {} }
+    table.insert(self.stores, store)
+    return store
+end
+
+function Character:removeStore(index)
+    return table.remove(self.stores, index)
+end
+
+--- Moves Shards from your purse into a store, as far as the purse allows.
+-- @treturn int how many moved
+function Character:depositShards(store, amount)
+    local moved = math.max(0, math.min(tonumber(amount) or 0, self.shards))
+    self.shards = self.shards - moved
+    store.shards = store.shards + moved
+    return moved
+end
+
+--- Takes Shards back out of a store, as far as the store holds.
+function Character:withdrawShards(store, amount)
+    local moved = math.max(0, math.min(tonumber(amount) or 0, store.shards))
+    store.shards = store.shards - moved
+    self.shards = self.shards + moved
+    return moved
+end
+
+--- Leaves the possession at `index` in a store.
+function Character:leaveItem(store, index)
+    local item = table.remove(self.possessions, index)
+    if item then table.insert(store.items, item) end
+    return item
+end
+
+--- Takes an item back from a store, if there is room to carry it.
+-- @treturn bool success
+-- @treturn string|nil reason for refusal
+function Character:takeItem(store, index)
+    local item = store.items[index]
+    if not item then return false end
+    local ok, err = self:addPossession(item)
+    if not ok then return false, err end
+    table.remove(store.items, index)
+    return true
 end
 
 -- Curses, diseases and poisons --------------------------------------------

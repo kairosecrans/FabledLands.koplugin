@@ -735,5 +735,50 @@ do
     eq(Format.item({ name = "trident", ability = "COMBAT", bonus = 1 }), "trident (COMBAT +1)", "weapons as the books write them")
 end
 
+-- Stored elsewhere ----------------------------------------------------------
+do
+    local hero = Character.create("Saver", "Rogue") -- 16 Shards, 3 items
+    eq(hero:addStore("   "), nil, "a store needs a place")
+    local house = hero:addStore(" Town house ")
+    eq(house.place, "Town house", "place trimmed")
+    eq(Format.storeContents(house), "empty", "starts empty")
+
+    eq(hero:depositShards(house, 10), 10, "deposit moves Shards")
+    eq(hero.shards, 6, "out of the purse")
+    eq(house.shards, 10, "into the store")
+    eq(hero:depositShards(house, 50), 6, "cannot deposit more than you carry")
+    eq(hero.shards, 0, "purse emptied")
+    eq(hero:withdrawShards(house, 4), 4, "withdraw moves Shards back")
+    eq(hero.shards, 4, "into the purse")
+    eq(hero:withdrawShards(house, 99), 12, "cannot withdraw more than is stored")
+    eq(house.shards, 0, "store emptied")
+
+    local left = hero:leaveItem(house, 3)
+    eq(left.name, "map", "item left behind")
+    eq(#hero.possessions, 2, "no longer carried")
+    eq(#house.items, 1, "kept in the store")
+    eq(Format.storeContents(house), "1 item", "summed up")
+
+    -- Taking it back needs room in the pack.
+    for i = 3, Rules.MAX_POSSESSIONS do hero:addPossession({ name = "rock " .. i }) end
+    local ok, err = hero:takeItem(house, 1)
+    eq(ok, false, "a full pack cannot take it back")
+    check(err ~= nil, "and says why")
+    eq(#house.items, 1, "so it stays stored")
+    hero:removePossession(12)
+    eq(hero:takeItem(house, 1), true, "with room it comes back")
+    eq(hero.possessions[12].name, "map", "into the pack")
+    eq(#house.items, 0, "out of the store")
+
+    hero:addStore("Guild")
+    contains(Format.sheet(hero), "Stored at Town house, Guild", "places listed on the sheet")
+    eq(hero:removeStore(1).place, "Town house", "a store can be forgotten")
+
+    local old = Character.restore({ stores = { { place = "Bank", shards = "30" } } })
+    eq(old.stores[1].shards, 30, "stored amounts read as numbers")
+    eq(#old.stores[1].items, 0, "and a missing item list is filled in")
+    eq(#Character.restore({}).stores, 0, "older saves get an empty list")
+end
+
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)

@@ -1,7 +1,7 @@
 --[[--
 Editors for the parts of the Adventure Sheet you write in with a pencil:
-possessions and money, codewords, titles, blessings, curses and diseases,
-the Ship's Manifest, Stamina and abilities.
+possessions and money, things stored elsewhere, codewords, titles,
+blessings, curses and diseases, the Ship's Manifest, Stamina and abilities.
 
 Every screen returns to the one that opened it, so the whole thing behaves
 like a stack of sheets rather than a maze.
@@ -241,6 +241,153 @@ function Inventory.possessions(plugin)
             _("Only your best weapon and armour count."),
             _("Money"), character.shards),
         buttons = rows,
+        close_callback = function() plugin:showSheet() end,
+    }
+end
+
+-- Stored elsewhere --------------------------------------------------------
+
+--- One place where money or possessions are kept.
+function Inventory.store(plugin, index)
+    local character = plugin.character
+    local store = character.stores[index]
+    if not store then return Inventory.stores(plugin) end
+    local back = function() Inventory.store(plugin, index) end
+
+    local rows = { {
+        {
+            text = _("Deposit"),
+            enabled = character.shards > 0,
+            callback = function()
+                askShards(plugin, ("Deposit how many? You carry %d."):format(character.shards), "",
+                    _("Deposit"), function(amount) character:depositShards(store, amount) end, back)
+            end,
+        },
+        {
+            text = _("Withdraw"),
+            enabled = store.shards > 0,
+            callback = function()
+                askShards(plugin, ("Withdraw how many? %d are here."):format(store.shards), "",
+                    _("Withdraw"), function(amount) character:withdrawShards(store, amount) end, back)
+            end,
+        },
+        {
+            -- For an investment whose value the book changes.
+            text = _("Set"),
+            callback = function()
+                askShards(plugin, _("How many Shards are here now?"), tostring(store.shards),
+                    _("Set"), function(amount) store.shards = amount end, back)
+            end,
+        },
+    } }
+
+    for item_index, item in ipairs(store.items) do
+        table.insert(rows, { {
+            text = describeItem(item),
+            callback = function()
+                Prompts.menu{
+                    title = describeItem(item),
+                    items = {
+                        {
+                            text = _("Take it with you"),
+                            callback = function()
+                                local ok, err = character:takeItem(store, item_index)
+                                if ok then plugin:save() else Prompts.info(err) end
+                                back()
+                            end,
+                        },
+                        {
+                            text = _("It is lost"),
+                            callback = function()
+                                table.remove(store.items, item_index)
+                                plugin:save()
+                                back()
+                            end,
+                        },
+                    },
+                    close_callback = back,
+                }
+            end,
+        } })
+    end
+
+    table.insert(rows, { {
+        text = _("Leave something here"),
+        enabled = #character.possessions > 0,
+        callback = function()
+            local items = {}
+            for pack_index, item in ipairs(character.possessions) do
+                table.insert(items, {
+                    text = describeItem(item),
+                    callback = function()
+                        character:leaveItem(store, pack_index)
+                        plugin:save()
+                        back()
+                    end,
+                })
+            end
+            Prompts.menu{ title = _("Leave what?"), items = items, close_callback = back }
+        end,
+    } })
+    table.insert(rows, { {
+        text = _("Forget this place"),
+        callback = function()
+            Prompts.confirm{
+                text = (store.shards > 0 or #store.items > 0)
+                    and ("Forget %s, and the %s kept there?"):format(store.place, Format.storeContents(store))
+                    or ("Forget %s?"):format(store.place),
+                ok_text = _("Forget"),
+                ok_callback = function()
+                    character:removeStore(index)
+                    plugin:save()
+                    Inventory.stores(plugin)
+                end,
+                cancel_callback = back,
+            }
+        end,
+    } })
+
+    Prompts.panel{
+        title = ("%s\n\n%s  %d Shards"):format(store.place, _("Money"), store.shards),
+        buttons = rows,
+        close_callback = function() Inventory.stores(plugin) end,
+    }
+end
+
+--- Money deposited or invested, and possessions left behind somewhere.
+function Inventory.stores(plugin)
+    local character = plugin.character
+    local back = function() Inventory.stores(plugin) end
+    local items = {}
+
+    for index, store in ipairs(character.stores) do
+        table.insert(items, {
+            text = ("%s  (%s)"):format(store.place, Format.storeContents(store)),
+            callback = function() Inventory.store(plugin, index) end,
+        })
+    end
+    table.insert(items, {
+        text = _("Somewhere new"),
+        callback = function()
+            Prompts.text{
+                title = _("Where are you keeping things?"),
+                hint = _("a house, a bank, a friend"),
+                ok_text = _("Add"),
+                cancel_callback = back,
+                callback = function(place)
+                    local store = character:addStore(place)
+                    if not store then back() return end
+                    plugin:save()
+                    Inventory.store(plugin, #character.stores)
+                end,
+            }
+        end,
+    })
+
+    Prompts.menu{
+        title = ("%s\n\n%s"):format(_("Stored elsewhere"),
+            _("Money deposited or invested, and things left behind. None of it counts against what you carry.")),
+        items = items,
         close_callback = function() plugin:showSheet() end,
     }
 end

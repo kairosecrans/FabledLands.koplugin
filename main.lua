@@ -559,6 +559,7 @@ function FabledLands:showMore()
             { text = _("Curses and diseases"), callback = function() Inventory.afflictions(self) end },
             { text = _("God and resurrection"), callback = function() Inventory.faith(self) end },
             { text = _("Ship's Manifest"), callback = function() Inventory.ship(self) end },
+            { text = _("Stored elsewhere"), callback = function() Inventory.stores(self) end },
             { text = _("Notes"), callback = function() Inventory.notes(self) end },
             {
                 text = ("Go up to %s Rank"):format(Rules.ordinal(character.rank + 1)),
