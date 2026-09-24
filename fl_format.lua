@@ -188,7 +188,7 @@ function Format.modifiers(fight)
     return table.concat(lines, "\n")
 end
 
---- A short label for the minimised badge: enough to see the fight's state at
+--- A short label for the minimized badge: enough to see the fight's state at
 -- a glance without opening it.
 function Format.badge(character, fight)
     if fight then

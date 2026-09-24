@@ -140,8 +140,8 @@ function Inventory.possessions(plugin)
     })
 
     table.insert(items, {
-        text = _("Minimise"),
-        callback = function() plugin:minimise(back, "sheet") end,
+        text = _("Minimize"),
+        callback = function() plugin:minimize(back, "sheet") end,
     })
 
     Prompts.menu{
@@ -217,8 +217,8 @@ function Inventory.codewords(plugin)
     })
 
     table.insert(items, {
-        text = _("Minimise"),
-        callback = function() plugin:minimise(back, "sheet") end,
+        text = _("Minimize"),
+        callback = function() plugin:minimize(back, "sheet") end,
     })
 
     Prompts.menu{

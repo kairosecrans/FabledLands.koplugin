@@ -66,11 +66,11 @@ function FabledLands:init()
     -- kept out of the path that everything else depends on.
     if self.settings then
         local fine, oops = pcall(function()
-            self.minimised = self.settings:readSetting("minimised")
-            if self.minimised then self:showBadge() end
+            self.minimized = self.settings:readSetting("minimized")
+            if self.minimized then self:showBadge() end
         end)
         if not fine then
-            self.minimised = nil
+            self.minimized = nil
             logger.warn("Fabled Lands: could not restore the badge:", oops)
         end
     end
@@ -112,7 +112,7 @@ function FabledLands:onDispatcherRegisterActions()
         title = _("Fabled Lands: ability roll"),
         general = true,
     })
-    -- Worth binding to a gesture: it reopens whatever you minimised, without
+    -- Worth binding to a gesture: it reopens whatever you minimized, without
     -- the stray page turn a tap on the badge can cause.
     Dispatcher:registerAction("fabledlands_section", {
         category = "none",
@@ -123,7 +123,7 @@ function FabledLands:onDispatcherRegisterActions()
     Dispatcher:registerAction("fabledlands_restore", {
         category = "none",
         event = "FabledLandsRestore",
-        title = _("Fabled Lands: restore minimised"),
+        title = _("Fabled Lands: restore minimized"),
         general = true,
     })
 end
@@ -241,7 +241,7 @@ It needs a text layer -- a scan that has been through OCR. Use the reader's own 
     end
 end
 
--- Minimising ---------------------------------------------------------------
+-- Minimizing ---------------------------------------------------------------
 
 --- Hides the plugin behind a small floating badge, remembering exactly how to
 -- come back. Any screen can call this: it hands over a closure that reopens
@@ -251,11 +251,11 @@ end
 -- it; after a restart the badge reappears and falls back to that screen.
 -- @func reopen called on restore to rebuild the screen
 -- @string name coarse fallback: "combat" or "sheet"
-function FabledLands:minimise(reopen, name)
+function FabledLands:minimize(reopen, name)
     self.reopen = reopen
-    self.minimised = name or "sheet"
+    self.minimized = name or "sheet"
     if self.settings then
-        self.settings:saveSetting("minimised", self.minimised)
+        self.settings:saveSetting("minimized", self.minimized)
         self.settings:flush()
     end
     self:showBadge()
@@ -263,7 +263,7 @@ end
 
 function FabledLands:showBadge()
     self:hideBadge()
-    if not self.minimised or not self.character then return end
+    if not self.minimized or not self.character then return end
 
     self.badge = Badge:new{
         text = Format.badge(self.character, self.character.fight),
@@ -300,12 +300,12 @@ function FabledLands:keepPagePut()
     end)
 end
 
---- Reopens exactly the screen that was minimised.
+--- Reopens exactly the screen that was minimized.
 function FabledLands:restore()
-    local reopen, screen = self.reopen, self.minimised
-    self.reopen, self.minimised = nil, nil
+    local reopen, screen = self.reopen, self.minimized
+    self.reopen, self.minimized = nil, nil
     if self.settings then
-        self.settings:delSetting("minimised")
+        self.settings:delSetting("minimized")
         self.settings:flush()
     end
     self:keepPagePut()
@@ -334,7 +334,7 @@ function FabledLands:onFabledLandsSection()
 end
 
 function FabledLands:onFabledLandsRestore()
-    if self.minimised then
+    if self.minimized then
         self:restore()
     else
         self:showSheet()
@@ -451,9 +451,9 @@ function FabledLands:showSheet()
                     callback = function() self:turnToSection() end,
                 },
                 {
-                    text = _("Minimise"),
+                    text = _("Minimize"),
                     callback = function()
-                        self:minimise(function() self:showSheet() end, "sheet")
+                        self:minimize(function() self:showSheet() end, "sheet")
                     end,
                 },
             },
@@ -591,9 +591,9 @@ function FabledLands:showRoll()
     end
 
     table.insert(items, {
-        text = _("Minimise"),
+        text = _("Minimize"),
         callback = function()
-            self:minimise(function() self:showRoll() end, "sheet")
+            self:minimize(function() self:showRoll() end, "sheet")
         end,
     })
 
@@ -634,9 +634,9 @@ function FabledLands:rollAbility(ability, difficulty)
             },
         }, {
             {
-                text = _("Minimise"),
+                text = _("Minimize"),
                 callback = function()
-                    self:minimise(function() self:rollAbility(ability, difficulty) end, "sheet")
+                    self:minimize(function() self:rollAbility(ability, difficulty) end, "sheet")
                 end,
             },
         } },

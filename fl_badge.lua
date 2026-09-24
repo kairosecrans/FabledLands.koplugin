@@ -1,5 +1,5 @@
 --[[--
-The minimised badge: a small floating marker that stays on screen while you
+The minimized badge: a small floating marker that stays on screen while you
 read, and taps back to whatever plugin screen you left.
 
 The whole thing hinges on one KOReader detail. UIManager:sendEvent dispatches

@@ -65,7 +65,7 @@ local function buildFight(values, carry)
     }
 end
 
---- The stat-block form. `typed` repopulates it after a minimise, so you can
+--- The stat-block form. `typed` repopulates it after a minimize, so you can
 -- duck back to the page for the enemy's numbers without losing your place.
 local function askStatBlock(plugin, title, ok_text, callback, typed)
     typed = typed or {}
@@ -83,9 +83,9 @@ local function askStatBlock(plugin, title, ok_text, callback, typed)
         ok_text = ok_text,
         callback = callback,
         extra = {
-            text = _("Minimise"),
+            text = _("Minimize"),
             callback = function(values)
-                plugin:minimise(function()
+                plugin:minimize(function()
                     askStatBlock(plugin, title, ok_text, callback, values)
                 end, "combat")
             end,
@@ -208,9 +208,9 @@ local function showModifiers(plugin)
                 end,
             },
             {
-                text = _("Minimise"),
+                text = _("Minimize"),
                 callback = function()
-                    plugin:minimise(function() showModifiers(plugin) end, "combat")
+                    plugin:minimize(function() showModifiers(plugin) end, "combat")
                 end,
             },
             {
@@ -306,9 +306,9 @@ function Combat.show(plugin)
                 callback = function() showModifiers(plugin) end,
             },
             {
-                text = _("Minimise"),
+                text = _("Minimize"),
                 callback = function()
-                    plugin:minimise(function() Combat.show(plugin) end, "combat")
+                    plugin:minimize(function() Combat.show(plugin) end, "combat")
                 end,
             },
         })

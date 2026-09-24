@@ -107,7 +107,7 @@ end
 
 --- Asks for several values at once.
 -- `extra` adds a third button that receives whatever has been typed so far,
--- which is how a half-filled form can be minimised and come back intact.
+-- which is how a half-filled form can be minimized and come back intact.
 -- @tparam table opts title, fields (as MultiInputDialog), ok_text, callback(values), extra
 function Prompts.fields(opts)
     local dialog
