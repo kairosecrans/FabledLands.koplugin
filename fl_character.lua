@@ -61,6 +61,7 @@ function Character.create(name, profession, book)
         codewords = {},
         titles = {},
         blessings = {},
+        afflictions = {},
         notes = "",
     })
 end
@@ -74,6 +75,7 @@ function Character.restore(data)
     data.codewords = data.codewords or {}
     data.titles = data.titles or {}
     data.blessings = data.blessings or {}
+    data.afflictions = data.afflictions or {}
     data.rank_gains = data.rank_gains or {}
     data.trail = data.trail or {}
     data.resurrection = data.resurrection or {}
@@ -474,6 +476,49 @@ end
 
 function Character:removeBlessing(index)
     return table.remove(self.blessings, index)
+end
+
+-- Curses, diseases and poisons --------------------------------------------
+
+--- Records an affliction and takes its toll on your abilities.
+--
+-- The books word these as "lose 1 point from your CHARISMA and COMBAT until
+-- the curse is lifted", so this does exactly that to the scores themselves.
+-- Rolls, fights and Defence then follow without knowing afflictions exist.
+-- What was actually taken is kept, since a score already at 1 cannot lose
+-- anything, and a cure should not hand back points that were never lost.
+-- @tparam string name
+-- @tparam table penalties { ABILITY = points, ... }, may be empty
+-- @treturn table|nil the affliction as recorded, or nil for a blank name
+function Character:addAffliction(name, penalties)
+    name = tostring(name or ""):match("^%s*(.-)%s*$")
+    if name == "" then return nil end
+    local taken = {}
+    for _, ability in ipairs(Rules.ABILITIES) do
+        local points = tonumber((penalties or {})[ability]) or 0
+        if points > 0 then
+            local before = self.abilities[ability]
+            self.abilities[ability] = Rules.clampAbility(before - points)
+            if before - self.abilities[ability] > 0 then
+                taken[ability] = before - self.abilities[ability]
+            end
+        end
+    end
+    local affliction = { name = name, penalties = taken }
+    table.insert(self.afflictions, affliction)
+    return affliction
+end
+
+--- Cures an affliction, giving back what it took.
+function Character:cureAffliction(index)
+    local affliction = table.remove(self.afflictions, index)
+    if not affliction then return nil end
+    for ability, points in pairs(affliction.penalties or {}) do
+        if self.abilities[ability] then
+            self.abilities[ability] = Rules.clampAbility(self.abilities[ability] + points)
+        end
+    end
+    return affliction
 end
 
 return Character

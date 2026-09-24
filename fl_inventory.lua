@@ -1,7 +1,7 @@
 --[[--
 Editors for the parts of the Adventure Sheet you write in with a pencil:
-possessions and money, codewords, titles, blessings, the Ship's Manifest,
-Stamina and abilities.
+possessions and money, codewords, titles, blessings, curses and diseases,
+the Ship's Manifest, Stamina and abilities.
 
 Every screen returns to the one that opened it, so the whole thing behaves
 like a stack of sheets rather than a maze.
@@ -412,6 +412,111 @@ function Inventory.blessings(plugin)
     }
 end
 
+-- Curses, diseases and poisons --------------------------------------------
+
+local function describePenalties(penalties, sign)
+    local parts = {}
+    for _i, ability in ipairs(Rules.ABILITIES) do
+        local points = (penalties or {})[ability]
+        if points and points > 0 then
+            table.insert(parts, ("%s %s%d"):format(ability, sign, points))
+        end
+    end
+    return table.concat(parts, ", ")
+end
+
+--- Which abilities a new affliction lowers, and by how much. The book says
+-- so in the same breath as naming it.
+local function askPenalties(plugin, name, penalties, back)
+    local again = function() askPenalties(plugin, name, penalties, back) end
+    local items = {}
+    for _i, ability in ipairs(Rules.ABILITIES) do
+        local points = penalties[ability] or 0
+        table.insert(items, {
+            text = points > 0 and ("%s  -%d"):format(ability, points) or ability,
+            callback = function()
+                Prompts.number{
+                    title = ("%s: %s"):format(name, ability),
+                    info = _("How many points does it take?"),
+                    value = points > 0 and points or 1, min = 0, max = 11,
+                    ok_text = _("Set"),
+                    cancel_callback = again,
+                    callback = function(value)
+                        penalties[ability] = value > 0 and value or nil
+                        again()
+                    end,
+                }
+            end,
+        })
+    end
+    table.insert(items, {
+        text = _("Record it"),
+        callback = function()
+            plugin.character:addAffliction(name, penalties)
+            plugin:save()
+            back()
+        end,
+    })
+
+    Prompts.menu{
+        title = ("%s\n\n%s"):format(name,
+            _("Tap each ability it lowers until it is cured, then Record it.")),
+        items = items,
+        close_callback = back,
+    }
+end
+
+function Inventory.afflictions(plugin)
+    local character = plugin.character
+    local back = function() Inventory.afflictions(plugin) end
+    local items = {}
+
+    for index, affliction in ipairs(character.afflictions) do
+        local cost = describePenalties(affliction.penalties, "-")
+        table.insert(items, {
+            text = cost ~= "" and ("%s  (%s)"):format(affliction.name, cost) or affliction.name,
+            callback = function()
+                local refund = describePenalties(affliction.penalties, "+")
+                Prompts.confirm{
+                    text = refund ~= ""
+                        and ("Cured of %s?\n\nYou get back %s."):format(affliction.name, refund)
+                        or ("Cured of %s?"):format(affliction.name),
+                    ok_text = _("Cured"),
+                    ok_callback = function()
+                        character:cureAffliction(index)
+                        plugin:save()
+                        back()
+                    end,
+                    cancel_callback = back,
+                }
+            end,
+        })
+    end
+
+    table.insert(items, {
+        text = _("Record a curse, disease or poison"),
+        callback = function()
+            Prompts.text{
+                title = _("What has befallen you?"),
+                hint = _("Swamp fever"),
+                ok_text = _("Next"),
+                cancel_callback = back,
+                callback = function(name)
+                    name = name:match("^%s*(.-)%s*$")
+                    if name == "" then back() return end
+                    askPenalties(plugin, name, {}, back)
+                end,
+            }
+        end,
+    })
+
+    Prompts.menu{
+        title = ("%s\n\n%s"):format(_("Curses, diseases and poisons"),
+            _("Each lowers your abilities until it is cured. Tap one once it is.")),
+        items = items,
+        close_callback = function() plugin:showSheet() end,
+    }
+end
 
 -- Your god, and dying -------------------------------------------------------
 

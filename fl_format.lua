@@ -115,6 +115,13 @@ function Format.sheet(character)
         end
         table.insert(lines, pad("Blessings", 10) .. table.concat(names, ", "))
     end
+    if #(character.afflictions or {}) > 0 then
+        local names = {}
+        for _, affliction in ipairs(character.afflictions) do
+            table.insert(names, affliction.name)
+        end
+        table.insert(lines, pad("Afflicted", 10) .. table.concat(names, ", "))
+    end
     if character.god then
         table.insert(lines, pad("God", 10) .. character.god)
     end

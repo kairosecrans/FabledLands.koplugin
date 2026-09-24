@@ -667,5 +667,45 @@ do
     eq(Character.create("Empty", "Rogue"):rekeyTrail("a", "b"), 0, "no trail at all is fine")
 end
 
+-- Curses, diseases and poisons ---------------------------------------------
+do
+    local hero = Character.create("Afflicted", "Rogue") -- CHA 5, COM 4, SAN 1
+    eq(#hero.afflictions, 0, "no afflictions to begin with")
+    eq(hero:addAffliction("   ", { COMBAT = 1 }), nil, "an affliction needs a name")
+    eq(hero.abilities.COMBAT, 4, "and a refused one costs nothing")
+
+    local curse = hero:addAffliction("  Curse  ", { CHARISMA = 1, COMBAT = 1, SANCTITY = 1 })
+    eq(curse.name, "Curse", "name trimmed")
+    eq(hero.abilities.CHARISMA, 4, "CHARISMA lowered")
+    eq(hero.abilities.COMBAT, 3, "COMBAT lowered")
+    eq(hero:defence(), 5, "Defence follows the lowered COMBAT")
+    eq(hero.abilities.SANCTITY, 1, "an ability at 1 cannot go lower")
+    eq(curse.penalties.SANCTITY, nil, "so nothing is recorded as taken from it")
+
+    local fever = hero:addAffliction("Fever", {})
+    eq(#hero.afflictions, 2, "an affliction may have no ability penalty")
+
+    -- Curing gives back exactly what was taken.
+    hero:cureAffliction(1)
+    eq(hero.abilities.CHARISMA, 5, "CHARISMA restored")
+    eq(hero.abilities.COMBAT, 4, "COMBAT restored")
+    eq(hero.abilities.SANCTITY, 1, "no free point for the ability that lost nothing")
+    eq(#hero.afflictions, 1, "the other affliction remains")
+    eq(hero.afflictions[1], fever, "and it is the right one")
+    eq(hero:cureAffliction(5), nil, "curing a missing entry is harmless")
+
+    -- Survives a save and load, and older saves gain an empty list.
+    local revived = Character.restore({ afflictions = { { name = "Old", penalties = { MAGIC = 2 } } },
+                                        abilities = { MAGIC = 3 } })
+    revived:cureAffliction(1)
+    eq(revived.abilities.MAGIC, 5, "cure works on a loaded character")
+    eq(#Character.restore({}).afflictions, 0, "older saves get an empty list")
+
+    -- Shown on the sheet.
+    hero:addAffliction("Swamp fever", { SCOUTING = 1 })
+    contains(Format.sheet(hero), "Afflicted", "afflictions listed on the sheet")
+    contains(Format.sheet(hero), "Swamp fever", "by name")
+end
+
 io.write(("\n%d checks, %d failures\n"):format(checks, failures))
 os.exit(failures == 0 and 0 or 1)
