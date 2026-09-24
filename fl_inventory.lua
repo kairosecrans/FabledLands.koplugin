@@ -753,18 +753,31 @@ function Inventory.money(plugin)
     local character = plugin.character
     local back = function() Inventory.money(plugin) end
 
-    local function adjust(title, ok_text, sign)
-        Prompts.number{
+    -- Typed, not a spinner: a purse runs to hundreds of Shards.
+    local function askShards(title, value, ok_text, apply)
+        Prompts.text{
             title = title,
-            value = 1, min = 1, max = 9999, hold_step = 50,
+            value = value,
+            input_type = "number",
             ok_text = ok_text,
             cancel_callback = back,
-            callback = function(amount)
-                character.shards = math.max(0, character.shards + sign * amount)
-                plugin:save()
+            callback = function(text)
+                local amount = tonumber(text)
+                if not amount or amount < 0 or amount ~= math.floor(amount) then
+                    Prompts.info(_("That is not a number of Shards."))
+                else
+                    apply(amount)
+                    plugin:save()
+                end
                 back()
             end,
         }
+    end
+
+    local function adjust(title, ok_text, sign)
+        askShards(title, "", ok_text, function(amount)
+            character.shards = math.max(0, character.shards + sign * amount)
+        end)
     end
 
     Prompts.menu{
@@ -781,24 +794,8 @@ function Inventory.money(plugin)
             {
                 text = _("Set the exact amount"),
                 callback = function()
-                    -- Typed, not a spinner: a purse runs to hundreds of Shards.
-                    Prompts.text{
-                        title = _("How many Shards do you have?"),
-                        value = tostring(character.shards),
-                        input_type = "number",
-                        ok_text = _("Set"),
-                        cancel_callback = back,
-                        callback = function(text)
-                            local value = tonumber(text)
-                            if not value or value < 0 or value ~= math.floor(value) then
-                                Prompts.info(_("That is not a number of Shards."))
-                            else
-                                character.shards = value
-                                plugin:save()
-                            end
-                            back()
-                        end,
-                    }
+                    askShards(_("How many Shards do you have?"), tostring(character.shards),
+                        _("Set"), function(value) character.shards = value end)
                 end,
             },
         },
