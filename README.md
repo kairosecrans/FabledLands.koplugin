@@ -73,7 +73,7 @@ through OCR), and says so if a book has none.
 profession table, Stamina, money and gear. One character travels the whole
 series, and codewords are never erased when moving between books.
 
-**Minimise** from any screen to a small badge in the margin, leaving the page
+**Minimize** from any screen to a small badge in the margin, leaving the page
 readable. Tapping it returns you to where you were, including a half-typed
 enemy stat block.
 
@@ -101,7 +101,7 @@ On Android that folder is `/storage/emulated/0/koreader/plugins/`; on Kobo,
 Restart KOReader. It appears under **Tools → More tools → Fabled Lands**.
 
 Four actions can be bound to a gesture under *Taps and gestures*: Adventure
-Sheet, ability roll, turn to section, and restore minimised.
+Sheet, ability roll, turn to section, and restore minimized.
 
 Characters live in KOReader's settings directory as `fabledlands.lua`, not in
 the plugin folder, so reinstalling doesn't touch them.
@@ -143,7 +143,7 @@ printed in the books.
 | `fl_prompts.lua` | Wrappers over the KOReader widgets |
 | `fl_combat.lua` | The combat tracker |
 | `fl_inventory.lua` | Editors for possessions, codewords and the rest |
-| `fl_badge.lua` | The minimised badge |
+| `fl_badge.lua` | The minimized badge |
 | `main.lua` | Plugin lifecycle, menu, persistence |
 
 The first four have no KOReader imports, so they run under a bare interpreter.
@@ -154,7 +154,7 @@ things that fail silently and leave the plugin loaded but unreachable:
 rebinding `_` in a file that uses it as the gettext alias, and doing KOReader
 work at module load.
 
-## Licence
+## License
 
 GPL-3.0, see [LICENSE](LICENSE).
 
