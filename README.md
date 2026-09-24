@@ -110,17 +110,19 @@ the plugin folder, so reinstalling doesn't touch them.
 
 From Book 1, *The War-Torn Kingdom*, pp. 5-7:
 
-| | |
-|---|---|
-| Ability check | 2d6 + ability, must be **strictly greater** than the Difficulty |
-| Defence | COMBAT + Rank + best armour bonus |
-| A blow | 2d6 + COMBAT against the target's Defence; the margin is Stamina lost |
-| Item bonuses | Never cumulative; only your best item counts per ability |
-| Abilities | 1 to 12 |
-| Possessions | 12 maximum |
-| Rank change | ±1 Rank and 1d6 Stamina, permanently |
-| Codewords | Lettered by book (A = Book 1, B = Book 2 …), carried between books |
-| Starting later | Book N starts you at Rank N, with that book's profession table |
+- **Ability check.** 2d6 + ability, must be **strictly greater** than the
+  Difficulty.
+- **Defence.** COMBAT + Rank + best armour bonus.
+- **A blow.** 2d6 + COMBAT against the target's Defence; the margin is the
+  Stamina lost.
+- **Item bonuses.** Never cumulative; only your best item counts per ability.
+- **Abilities.** 1 to 12.
+- **Possessions.** 12 maximum.
+- **Rank change.** ±1 Rank and 1d6 Stamina, permanently.
+- **Codewords.** Lettered by book (A = Book 1, B = Book 2 …), carried between
+  books.
+- **Starting later.** Book N starts you at Rank N, with that book's profession
+  table.
 
 The tests check these against the examples and pre-generated characters
 printed in the books.
@@ -132,7 +134,7 @@ printed in the books.
 ./build-release.sh  # archive that extracts to FabledLands.koplugin/
 ```
 
-| file | |
+| file | what it does |
 |---|---|
 | `fl_rules.lua` | Dice and the rules |
 | `fl_character.lua` | The Adventure Sheet model |
